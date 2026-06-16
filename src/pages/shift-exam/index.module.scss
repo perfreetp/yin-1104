@@ -370,3 +370,157 @@
   color: $color-info;
   line-height: $line-height-normal;
 }
+
+.resultPage {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-bottom: $spacing-xl;
+}
+
+.resultStatsRow {
+  display: flex;
+  padding: $spacing-md $page-padding;
+  gap: $spacing-md;
+  background: $color-bg-card;
+  margin: 0 $page-padding;
+  border-radius: $radius-md;
+  margin-top: -$spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.filterTabs {
+  display: flex;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+  padding: 4rpx;
+}
+
+.filterTab {
+  padding: 8rpx 24rpx;
+  border-radius: $radius-sm;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  transition: all $transition-fast;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+}
+
+.weakCategories {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.weakCategoryItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  border-left: 6rpx solid $color-warning;
+}
+
+.weakCategoryName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.addTrainingBtn {
+  @include button-reset;
+  padding: 10rpx 24rpx;
+  background: $color-primary;
+  color: $color-text-white;
+  border-radius: $radius-round;
+  font-size: $font-size-xs;
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.resultList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.resultArrow {
+  font-size: $font-size-lg;
+  color: $color-text-tertiary;
+  flex-shrink: 0;
+}
+
+.detailModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $page-padding;
+}
+
+.detailContent {
+  width: 100%;
+  max-height: 85vh;
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md $spacing-lg;
+  border-bottom: 2rpx solid $color-divider;
+}
+
+.detailTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.detailClose {
+  font-size: 36rpx;
+  color: $color-text-tertiary;
+}
+
+.detailAddBtn {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-warning 0%, #FFC53D 100%);
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  margin: $spacing-md $spacing-lg;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.9;
+  }
+}

@@ -45,9 +45,142 @@
   border-radius: $radius-round;
 }
 
+.readinessSection {
+  padding: 0 $page-padding;
+  margin-top: -40rpx;
+  margin-bottom: $spacing-md;
+}
+
+.readinessCard {
+  background: $color-bg-card;
+  border-radius: $radius-card;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.readinessHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.readinessTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.readinessIcon {
+  font-size: 36rpx;
+}
+
+.readinessBadge {
+  padding: 6rpx 20rpx;
+  border-radius: $radius-round;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.levelGood {
+  background: rgba(0, 180, 42, 0.1);
+  color: $color-success;
+}
+
+.levelMedium {
+  background: rgba(255, 192, 0, 0.15);
+  color: #FFB800;
+}
+
+.levelBad {
+  background: rgba(245, 63, 63, 0.1);
+  color: $color-error;
+}
+
+.readinessMain {
+  margin-bottom: $spacing-lg;
+}
+
+.readinessScore {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: $spacing-sm;
+}
+
+.scoreNum {
+  font-size: $font-size-xxxl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+}
+
+.scoreMax {
+  font-size: $font-size-md;
+  color: $color-text-tertiary;
+  margin-left: 8rpx;
+}
+
+.readinessProgress {
+  width: 100%;
+  height: 16rpx;
+  background: $color-bg-page;
+  border-radius: $radius-round;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-round;
+  transition: width $transition-normal;
+}
+
+.readinessItems {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.readinessItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+}
+
+.itemLeft {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.itemDot {
+  font-size: $font-size-md;
+  color: $color-text-tertiary;
+
+  &.done {
+    color: $color-success;
+  }
+}
+
+.itemLabel {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.itemScore {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
 .statsSection {
   padding: 0 $page-padding;
-  margin-top: -48rpx;
+  margin-top: 0;
   margin-bottom: $spacing-lg;
 }
 

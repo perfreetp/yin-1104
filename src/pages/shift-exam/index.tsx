@@ -19,10 +19,13 @@ const ShiftExamPage: React.FC = () => {
   const [answers, setAnswers] = useState<Record<number, number | number[]>>({});
   const [timer, setTimer] = useState(0);
   const [hasSaved, setHasSaved] = useState(false);
+  const [showQuestionDetail, setShowQuestionDetail] = useState<number | null>(null);
+  const [filterMode, setFilterMode] = useState<'all' | 'wrong'>('all');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const getRoleExamQuestions = useAppStore(s => s.getRoleExamQuestions);
   const addExamRecord = useAppStore(s => s.addExamRecord);
+  const addCategoryToTraining = useAppStore(s => s.addCategoryToTraining);
 
   const roleName: Record<RoleType, string> = {
     nurse: '护士',
@@ -45,6 +48,7 @@ const ShiftExamPage: React.FC = () => {
     setAnswers({});
     setTimer(0);
     setHasSaved(false);
+    setFilterMode('all');
     setExamStatus('exam');
 
     if (timerRef.current) clearInterval(timerRef.current);
@@ -110,6 +114,13 @@ const ShiftExamPage: React.FC = () => {
 
   const isPass = score >= passScore;
   const answeredCount = Object.keys(answers).length;
+  const wrongQuestions = examQuestions.filter(
+    (q, idx) => !isAnswerCorrect(q, answers[idx])
+  );
+  const wrongCategories = useMemo(() => {
+    const cats = new Set(wrongQuestions.map(q => q.category));
+    return Array.from(cats);
+  }, [wrongQuestions]);
 
   const submitExam = () => {
     if (timerRef.current) {
@@ -168,6 +179,29 @@ const ShiftExamPage: React.FC = () => {
     setExamQuestions([]);
     setAnswers({});
   };
+
+  const handleAddToTraining = (category: string) => {
+    const task = addCategoryToTraining(category);
+    if (task) {
+      Taro.showToast({ title: '已加入补训', icon: 'success' });
+    } else {
+      Taro.showToast({ title: '已在补训计划中', icon: 'none' });
+    }
+  };
+
+  const displayQuestions = useMemo(() => {
+    if (filterMode === 'wrong') {
+      return examQuestions
+        .map((q, idx) => ({ q, idx }))
+        .filter(({ q, idx }) => !isAnswerCorrect(q, answers[idx]))
+        .map(({ q, idx }) => ({ question: q, originalIndex: idx }));
+    }
+    return examQuestions.map((q, idx) => ({ question: q, originalIndex: idx }));
+  }, [examQuestions, answers, filterMode]);
+
+  const currentDetailQuestion = showQuestionDetail !== null
+    ? examQuestions[showQuestionDetail]
+    : null;
 
   return (
     <View className={styles.page}>
@@ -284,48 +318,134 @@ const ShiftExamPage: React.FC = () => {
       )}
 
       {examStatus === 'result' && (
-        <View className={styles.resultModal}>
-          <View className={styles.resultContent}>
-            <View className={classnames(styles.resultHeader, !isPass && styles.fail)}>
-              <Text className={styles.resultScore}>{score}分</Text>
-              <Text className={styles.resultLabel}>
-                {isPass ? '🎉 考核通过，可以上岗' : '💪 继续努力，加油'}
+        <View className={styles.resultPage}>
+          <View className={classnames(styles.resultHeader, !isPass && styles.fail)}>
+            <Text className={styles.resultScore}>{score}分</Text>
+            <Text className={styles.resultLabel}>
+              {isPass ? '🎉 考核通过，可以上岗' : '💪 继续努力，加油'}
+            </Text>
+          </View>
+
+          <View className={styles.resultStatsRow}>
+            <View className={styles.resultStat}>
+              <Text className={styles.resultStatValue}>{correctCount}</Text>
+              <Text className={styles.resultStatLabel}>答对</Text>
+            </View>
+            <View className={styles.resultStat}>
+              <Text className={styles.resultStatValue}>{examQuestions.length - correctCount}</Text>
+              <Text className={styles.resultStatLabel}>答错</Text>
+            </View>
+            <View className={styles.resultStat}>
+              <Text className={styles.resultStatValue}>{formatTime(timer)}</Text>
+              <Text className={styles.resultStatLabel}>用时</Text>
+            </View>
+          </View>
+
+          {wrongQuestions.length > 0 && (
+            <View className={styles.section}>
+              <View className={styles.sectionHeader}>
+                <Text className={styles.sectionTitle}>
+                  <Text className={styles.sectionTitleIcon}>📌</Text>
+                  薄弱环节
+                </Text>
+              </View>
+              <View className={styles.weakCategories}>
+                {wrongCategories.map(cat => (
+                  <View key={cat} className={styles.weakCategoryItem}>
+                    <Text className={styles.weakCategoryName}>{cat}</Text>
+                    <View
+                      className={styles.addTrainingBtn}
+                      onClick={() => handleAddToTraining(cat)}
+                    >
+                      <Text>加入补训</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <View className={styles.section}>
+            <View className={styles.sectionHeader}>
+              <Text className={styles.sectionTitle}>
+                <Text className={styles.sectionTitleIcon}>📋</Text>
+                考试详情
               </Text>
+              <View className={styles.filterTabs}>
+                <View
+                  className={classnames(styles.filterTab, filterMode === 'all' && styles.active)}
+                  onClick={() => setFilterMode('all')}
+                >
+                  <Text>全部</Text>
+                </View>
+                <View
+                  className={classnames(styles.filterTab, filterMode === 'wrong' && styles.active)}
+                  onClick={() => setFilterMode('wrong')}
+                >
+                  <Text>错题</Text>
+                </View>
+              </View>
             </View>
-            <View className={styles.resultStats}>
-              <View className={styles.resultStat}>
-                <Text className={styles.resultStatValue}>{correctCount}</Text>
-                <Text className={styles.resultStatLabel}>答对</Text>
-              </View>
-              <View className={styles.resultStat}>
-                <Text className={styles.resultStatValue}>{examQuestions.length - correctCount}</Text>
-                <Text className={styles.resultStatLabel}>答错</Text>
-              </View>
-              <View className={styles.resultStat}>
-                <Text className={styles.resultStatValue}>{formatTime(timer)}</Text>
-                <Text className={styles.resultStatLabel}>用时</Text>
-              </View>
-            </View>
-            <View className={styles.resultBody}>
-              {examQuestions.map((q, index) => {
-                const correct = isAnswerCorrect(q, answers[index]);
+
+            <View className={styles.resultList}>
+              {displayQuestions.map(({ question, originalIndex }, i) => {
+                const correct = isAnswerCorrect(question, answers[originalIndex]);
                 return (
-                  <View key={q.id} className={styles.resultItem}>
+                  <View
+                    key={question.id}
+                    className={styles.resultItem}
+                    onClick={() => setShowQuestionDetail(originalIndex)}
+                  >
                     <View className={classnames(styles.resultIndex, correct ? styles.correct : styles.wrong)}>
                       {correct ? '✓' : '✗'}
                     </View>
-                    <Text className={styles.resultQuestion}>{q.question}</Text>
+                    <Text className={styles.resultQuestion} numberOfLines={2}>
+                      {filterMode === 'all' ? `${originalIndex + 1}. ` : ''}
+                      {question.question}
+                    </Text>
+                    <Text className={styles.resultArrow}>›</Text>
                   </View>
                 );
               })}
             </View>
-            <View className={styles.resultFooter}>
-              <View className={classnames(styles.btn, styles.btnOutline)} onClick={restartExam}>
-                <Text>返回</Text>
-              </View>
-              <View className={classnames(styles.btn, styles.btnPrimary)} onClick={startExam}>
-                <Text>再考一次</Text>
-              </View>
+          </View>
+
+          <View className={styles.resultFooter}>
+            <View className={classnames(styles.btn, styles.btnOutline)} onClick={restartExam}>
+              <Text>返回首页</Text>
+            </View>
+            <View className={classnames(styles.btn, styles.btnPrimary)} onClick={startExam}>
+              <Text>再考一次</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {currentDetailQuestion && showQuestionDetail !== null && (
+        <View className={styles.detailModal} onClick={() => setShowQuestionDetail(null)}>
+          <View className={styles.detailContent} onClick={e => e.stopPropagation()}>
+            <View className={styles.detailHeader}>
+              <Text className={styles.detailTitle}>题目解析</Text>
+              <Text className={styles.detailClose} onClick={() => setShowQuestionDetail(null)}>✕</Text>
+            </View>
+            <ScrollView scrollY style={{ maxHeight: '65vh' }}>
+              <QuestionCard
+                question={currentDetailQuestion}
+                showAnswer={true}
+                selectedAnswer={answers[showQuestionDetail]}
+                onSelect={() => {}}
+              />
+            </ScrollView>
+            <View
+              className={classnames(
+                styles.detailAddBtn,
+                wrongQuestions.some(q => q.id === currentDetailQuestion.id) && styles.show
+              )}
+              onClick={() => {
+                handleAddToTraining(currentDetailQuestion.category);
+              }}
+            >
+              <Text>加入补训计划</Text>
             </View>
           </View>
         </View>

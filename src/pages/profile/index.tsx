@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
@@ -12,14 +12,16 @@ const ProfilePage: React.FC = () => {
   const trainingTasks = useAppStore(s => s.trainingTasks);
   const getStatistics = useAppStore(s => s.getStatistics);
   const getWeakPoints = useAppStore(s => s.getWeakPoints);
+  const getReadinessScore = useAppStore(s => s.getReadinessScore);
   const generateTrainingTasks = useAppStore(s => s.generateTrainingTasks);
   const markTaskCompleted = useAppStore(s => s.markTaskCompleted);
   const signProcess = useAppStore(s => s.signProcess);
 
   const [showSignModal, setShowSignModal] = useState(false);
 
-  const stats = useMemo(() => getStatistics(), [getStatistics, examRecords]);
-  const weakPoints = useMemo(() => getWeakPoints(), [getWeakPoints, examRecords, trainingTasks]);
+  const stats = useMemo(() => getStatistics(), [getStatistics]);
+  const weakPoints = useMemo(() => getWeakPoints(), [getWeakPoints]);
+  const readiness = useMemo(() => getReadinessScore(), [getReadinessScore]);
   const tasks = useMemo(() => {
     if (trainingTasks.length === 0) {
       return generateTrainingTasks();
@@ -28,10 +30,6 @@ const ProfilePage: React.FC = () => {
   }, [trainingTasks, generateTrainingTasks]);
 
   const roleName = userProfile.role === 'nurse' ? '护士' : '消毒员';
-
-  useEffect(() => {
-    console.log('[Profile] Loaded data, records:', examRecords.length, 'tasks:', trainingTasks.length);
-  }, [examRecords, trainingTasks]);
 
   const handleSign = () => {
     signProcess();
@@ -63,6 +61,14 @@ const ProfilePage: React.FC = () => {
 
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
 
+  const getReadinessLevel = () => {
+    if (readiness.total >= 80) return { text: '可上岗', color: styles.levelGood };
+    if (readiness.total >= 50) return { text: '学习中', color: styles.levelMedium };
+    return { text: '待努力', color: styles.levelBad };
+  };
+
+  const readinessLevel = getReadinessLevel();
+
   return (
     <ScrollView className={styles.page} scrollY>
       <View className={styles.header}>
@@ -75,6 +81,49 @@ const ProfilePage: React.FC = () => {
           <View className={styles.userInfo}>
             <Text className={styles.userName}>{userProfile.name}</Text>
             <Text className={styles.userRole}>{roleName}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View className={styles.readinessSection}>
+        <View className={styles.readinessCard}>
+          <View className={styles.readinessHeader}>
+            <Text className={styles.readinessTitle}>
+              <Text className={styles.readinessIcon}>🎯</Text>
+              上岗准备度
+            </Text>
+            <View className={classnames(styles.readinessBadge, readinessLevel.color)}>
+              <Text>{readinessLevel.text}</Text>
+            </View>
+          </View>
+
+          <View className={styles.readinessMain}>
+            <View className={styles.readinessScore}>
+              <Text className={styles.scoreNum}>{readiness.total}</Text>
+              <Text className={styles.scoreMax}>/100</Text>
+            </View>
+            <View className={styles.readinessProgress}>
+              <View
+                className={styles.progressFill}
+                style={{ width: `${readiness.total}%` }}
+              />
+            </View>
+          </View>
+
+          <View className={styles.readinessItems}>
+            {readiness.items.map(item => (
+              <View key={item.key} className={styles.readinessItem}>
+                <View className={styles.itemLeft}>
+                  <Text className={classnames(styles.itemDot, item.done && styles.done)}>
+                    {item.done ? '✓' : '○'}
+                  </Text>
+                  <Text className={styles.itemLabel}>{item.label}</Text>
+                </View>
+                <Text className={styles.itemScore}>
+                  {item.score}/{item.max}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
       </View>
@@ -103,7 +152,9 @@ const ProfilePage: React.FC = () => {
             易错环节
           </Text>
           {weakPoints.length > 0 && (
-            <Text className={styles.sectionMore}>基于最近{Math.min(examRecords.length, 5)}次考核</Text>
+            <Text className={styles.sectionMore}>
+              基于最近{Math.min(examRecords.length, 5)}次考核
+            </Text>
           )}
         </View>
         <View className={styles.weakPoints}>
@@ -114,7 +165,9 @@ const ProfilePage: React.FC = () => {
               </Text>
             ))
           ) : (
-            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '16rpx' }}>暂无记录，完成考核后自动生成</Text>
+            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '16rpx' }}>
+              暂无记录，完成考核后自动生成
+            </Text>
           )}
         </View>
       </View>
@@ -131,7 +184,7 @@ const ProfilePage: React.FC = () => {
         </View>
         <View className={styles.taskList}>
           {tasks.length > 0 ? (
-            tasks.map((task: TrainingTask) => (
+            tasks.slice(0, 5).map((task: TrainingTask) => (
               <View key={task.id} className={styles.taskItem} onClick={() => handleTaskClick(task)}>
                 <View className={classnames(styles.taskIcon, task.status === 'completed' && styles.completed)}>
                   <Text>{task.status === 'completed' ? '✓' : '📋'}</Text>
@@ -149,7 +202,9 @@ const ProfilePage: React.FC = () => {
               </View>
             ))
           ) : (
-            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '32rpx', textAlign: 'center' }}>暂无任务</Text>
+            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '32rpx', textAlign: 'center' }}>
+              暂无任务
+            </Text>
           )}
         </View>
       </View>
@@ -163,7 +218,7 @@ const ProfilePage: React.FC = () => {
           <Text className={styles.sectionMore}>共{examRecords.length}次</Text>
         </View>
         <View className={styles.recordList}>
-          {examRecords.slice(0, 10).map((record: ExamRecord) => {
+          {examRecords.slice(0, 5).map((record: ExamRecord) => {
             const dateInfo = formatDate(record.date);
             return (
               <View key={record.id} className={styles.recordItem}>
@@ -191,7 +246,9 @@ const ProfilePage: React.FC = () => {
             );
           })}
           {examRecords.length === 0 && (
-            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '32rpx', textAlign: 'center' }}>暂无考核记录</Text>
+            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '32rpx', textAlign: 'center' }}>
+              暂无考核记录
+            </Text>
           )}
         </View>
       </View>

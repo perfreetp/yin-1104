@@ -54,7 +54,11 @@ export interface Question {
 
 export interface WrongQuestion extends Question {
   wrongCount: number
+  correctCount: number
   lastWrongTime: string
+  lastPracticeTime: string
+  masteryLevel: 0 | 1 | 2 | 3 | 4 | 5
+  mastered: boolean
 }
 
 export interface PracticeRecord {
