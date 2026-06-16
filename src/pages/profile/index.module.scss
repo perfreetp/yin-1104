@@ -843,3 +843,309 @@
   color: $color-success !important;
   font-weight: $font-weight-semibold;
 }
+
+.categoryHighlight {
+  color: $color-primary !important;
+  font-weight: $font-weight-semibold;
+}
+
+.auditSection {
+  padding: 0 $page-padding;
+  margin-bottom: $spacing-md;
+}
+
+.auditCard {
+  background: $color-bg-card;
+  border-radius: $radius-card;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  border: 4rpx solid transparent;
+  transition: all $transition-fast;
+
+  &:active {
+    transform: scale(0.99);
+  }
+
+  &.auditPass {
+    border-color: rgba(0, 180, 42, 0.3);
+  }
+
+  &.auditPending {
+    border-color: rgba(255, 125, 0, 0.3);
+  }
+}
+
+.auditHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.auditTitle {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.auditIcon {
+  font-size: 36rpx;
+}
+
+.auditTitleText {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.auditBadge {
+  padding: 6rpx 20rpx;
+  border-radius: $radius-round;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.badgePass {
+  background: rgba(0, 180, 42, 0.1);
+  color: $color-success;
+}
+
+.badgePending {
+  background: rgba(255, 125, 0, 0.1);
+  color: $color-warning;
+}
+
+.auditProgress {
+  height: 12rpx;
+  background: $color-bg-page;
+  border-radius: $radius-round;
+  overflow: hidden;
+  margin-bottom: $spacing-md;
+}
+
+.auditProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-round;
+  transition: width $transition-normal;
+}
+
+.auditChecklist {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-md;
+}
+
+.auditCheckItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-xs 0;
+}
+
+.auditCheckDot {
+  font-size: $font-size-md;
+  color: $color-text-tertiary;
+  width: 36rpx;
+  text-align: center;
+
+  &.done {
+    color: $color-success;
+  }
+}
+
+.auditCheckLabel {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+
+  &.muted {
+    color: $color-text-secondary;
+  }
+}
+
+.auditFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: $spacing-sm;
+  border-top: 2rpx solid $color-divider;
+}
+
+.auditFooterText {
+  font-size: $font-size-sm;
+  color: $color-info;
+}
+
+.auditArrow {
+  font-size: 40rpx;
+  color: $color-text-tertiary;
+}
+
+.auditResultCard {
+  padding: $spacing-lg;
+  text-align: center;
+  background: $color-bg-page;
+  border-radius: $radius-lg;
+  margin-bottom: $spacing-lg;
+}
+
+.auditResultBadge {
+  display: inline-block;
+  padding: 8rpx 24rpx;
+  border-radius: $radius-round;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  margin-bottom: $spacing-sm;
+}
+
+.auditResultDesc {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.auditDetailItem {
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+  border-left: 6rpx solid $color-warning;
+
+  &.auditItemPass {
+    border-left-color: $color-success;
+  }
+}
+
+.auditDetailHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-xs;
+}
+
+.auditDetailDot {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.passDot {
+  background: rgba(0, 180, 42, 0.15);
+  color: $color-success;
+}
+
+.pendingDot {
+  background: rgba(255, 125, 0, 0.15);
+  color: $color-warning;
+}
+
+.auditDetailLabel {
+  flex: 1;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.auditDetailStatus {
+  font-size: $font-size-xs;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-round;
+}
+
+.statusPass {
+  background: rgba(0, 180, 42, 0.1);
+  color: $color-success;
+}
+
+.statusPending {
+  background: rgba(255, 125, 0, 0.1);
+  color: $color-warning;
+}
+
+.auditDetailDesc {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-normal;
+  margin-left: 48rpx;
+}
+
+.auditDetailSection {
+  margin-top: $spacing-lg;
+  padding-top: $spacing-md;
+  border-top: 2rpx dashed $color-divider;
+}
+
+.auditExamRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-sm;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+}
+
+.auditExamIndex {
+  width: 48rpx;
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: $color-text-tertiary;
+}
+
+.auditExamDate {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  display: block;
+}
+
+.auditExamMeta {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.auditExamScore {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  display: block;
+}
+
+.auditExamResult {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  display: block;
+  margin-top: 4rpx;
+}
+
+.auditSubmitBtn {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-lg;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+.canSubmitBtn {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+}
+
+.cantSubmitBtn {
+  background: $color-border;
+  color: $color-text-tertiary;
+}

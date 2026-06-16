@@ -23,6 +23,7 @@ const ProfilePage: React.FC = () => {
 
   const [showSignModal, setShowSignModal] = useState(false);
   const [selectedTimelineItem, setSelectedTimelineItem] = useState<TimelineItem | null>(null);
+  const [showAuditModal, setShowAuditModal] = useState(false);
 
   const stats = useMemo(() => getStatistics(), [getStatistics, examRecords]);
   const weakPoints = useMemo(() => getWeakPoints(), [getWeakPoints, wrongQuestions, examRecords]);
@@ -92,6 +93,50 @@ const ProfilePage: React.FC = () => {
   };
 
   const readinessLevel = getReadinessLevel();
+
+  const audit = useMemo(() => {
+    const recentExams = examRecords.slice(0, 3);
+    const recentPassCount = recentExams.filter(r => r.pass).length;
+    const recentAvgScore = recentExams.length > 0
+      ? Math.round(recentExams.reduce((s, r) => s + r.score, 0) / recentExams.length)
+      : 0;
+
+    const signOK = userProfile.signedProcess;
+    const examOK = recentExams.length >= 3 && recentPassCount >= 2;
+    const practiceOK = wrongQuestions.length > 0
+      ? wrongQuestions.filter(wq => wq.mastered).length === wrongQuestions.length
+      : true;
+    const taskOK = trainingTasks.length > 0
+      ? trainingTasks.filter(t => t.status === 'pending').length === 0
+      : true;
+
+    const checklist = [
+      { key: 'sign', label: '流程确认书已签署', done: signOK, detail: userProfile.signDate ? `签署时间：${formatFullDate(userProfile.signDate)}` : '尚未签署流程确认书' },
+      { key: 'exam', label: '最近3次考核达标', done: examOK, detail: recentExams.length === 0
+        ? '暂无考核记录，至少需完成3次'
+        : `已完成${recentExams.length}次，通过${recentPassCount}次，平均分${recentAvgScore}分` },
+      { key: 'practice', label: '错题全部掌握', done: practiceOK, detail: wrongQuestions.length === 0
+        ? '暂无错题记录'
+        : `共${wrongQuestions.length}道错题，已掌握${wrongQuestions.filter(wq => wq.mastered).length}道` },
+      { key: 'task', label: '补训任务全部完成', done: taskOK, detail: trainingTasks.length === 0
+        ? '暂无补训任务'
+        : `共${trainingTasks.length}项，待完成${trainingTasks.filter(t => t.status === 'pending').length}项` }
+    ];
+
+    return {
+      checklist,
+      signOK,
+      examOK,
+      practiceOK,
+      taskOK,
+      canSubmit: signOK && examOK && practiceOK && taskOK,
+      recentExams,
+      recentPassCount,
+      recentAvgScore,
+      unmasteredCount: wrongQuestions.filter(wq => !wq.mastered).length,
+      pendingTaskCount: trainingTasks.filter(t => t.status === 'pending').length,
+    };
+  }, [userProfile, examRecords, wrongQuestions, trainingTasks]);
 
   const getTimelineIcon = (type: string) => {
     switch (type) {
@@ -168,6 +213,52 @@ const ProfilePage: React.FC = () => {
                 </Text>
               </View>
             ))}
+          </View>
+        </View>
+      </View>
+
+      <View className={styles.auditSection}>
+        <View
+          className={classnames(styles.auditCard, audit.canSubmit ? styles.auditPass : styles.auditPending)}
+          onClick={() => setShowAuditModal(true)}
+        >
+          <View className={styles.auditHeader}>
+            <View className={styles.auditTitle}>
+              <Text className={styles.auditIcon}>🔍</Text>
+              <Text className={styles.auditTitleText}>上岗审核卡</Text>
+            </View>
+            <View className={classnames(styles.auditBadge, audit.canSubmit ? styles.badgePass : styles.badgePending)}>
+              <Text>{audit.canSubmit ? '可审核' : '待完善'}</Text>
+            </View>
+          </View>
+
+          <View className={styles.auditProgress}>
+            <View
+              className={styles.auditProgressFill}
+              style={{ width: `${(audit.checklist.filter(c => c.done).length / audit.checklist.length) * 100}%` }}
+            />
+          </View>
+
+          <View className={styles.auditChecklist}>
+            {audit.checklist.map(item => (
+              <View key={item.key} className={styles.auditCheckItem}>
+                <Text className={classnames(styles.auditCheckDot, item.done && styles.done)}>
+                  {item.done ? '✓' : '○'}
+                </Text>
+                <Text className={classnames(styles.auditCheckLabel, item.done || styles.muted)}>
+                  {item.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View className={styles.auditFooter}>
+            <Text className={styles.auditFooterText}>
+              {audit.canSubmit
+                ? '✨ 4项指标全部达标，点击提交审核'
+                : `还差${audit.checklist.filter(c => !c.done).length}项达标，点击查看详情`}
+            </Text>
+            <Text className={styles.auditArrow}>›</Text>
           </View>
         </View>
       </View>
@@ -479,6 +570,12 @@ const ProfilePage: React.FC = () => {
                       </Text>
                     </View>
                     <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>来源分类</Text>
+                      <Text className={classnames(styles.detailBlockValue, styles.categoryHighlight)}>
+                        {selectedTimelineItem.trainingTask.sourceCategory}
+                      </Text>
+                    </View>
+                    <View className={styles.detailBlock}>
                       <Text className={styles.detailBlockLabel}>任务描述</Text>
                       <Text className={styles.detailBlockValue}>
                         {selectedTimelineItem.trainingTask.description}
@@ -490,6 +587,20 @@ const ProfilePage: React.FC = () => {
                         {formatFullDate(selectedTimelineItem.trainingTask.createdAt)}
                       </Text>
                     </View>
+                    <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>截止日期</Text>
+                      <Text className={styles.detailBlockValue}>
+                        {formatFullDate(selectedTimelineItem.trainingTask.deadline)}
+                      </Text>
+                    </View>
+                    {selectedTimelineItem.trainingTask.completedAt && (
+                      <View className={styles.detailBlock}>
+                        <Text className={styles.detailBlockLabel}>完成时间</Text>
+                        <Text className={classnames(styles.detailBlockValue, styles.successText)}>
+                          {formatFullDate(selectedTimelineItem.trainingTask.completedAt)}
+                        </Text>
+                      </View>
+                    )}
                     <View className={styles.detailBlock}>
                       <Text className={styles.detailBlockLabel}>完成状态</Text>
                       <Text className={classnames(styles.detailBlockValue, { [styles.successText]: selectedTimelineItem.trainingTask.status === 'completed' })}>
@@ -505,6 +616,115 @@ const ProfilePage: React.FC = () => {
                 </View>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {showAuditModal && (
+        <View className={styles.timelineModal} onClick={() => setShowAuditModal(false)}>
+          <View className={styles.timelineModalContent} onClick={e => e.stopPropagation()}>
+            <View className={styles.timelineModalHeader}>
+              <Text className={styles.timelineModalIcon}>🔍</Text>
+              <Text className={styles.timelineModalTitle}>上岗审核详情</Text>
+              <Text className={styles.timelineModalClose} onClick={() => setShowAuditModal(false)}>✕</Text>
+            </View>
+            <ScrollView scrollY style={{ maxHeight: '65vh' }}>
+              <View className={styles.timelineModalBody}>
+                <View className={styles.auditResultCard}>
+                  <View className={classnames(styles.auditResultBadge, audit.canSubmit ? styles.badgePass : styles.badgePending)}>
+                    {audit.canSubmit ? '✅ 符合上岗条件' : '⏳ 暂不符合上岗条件'}
+                  </View>
+                  <Text className={styles.auditResultDesc}>
+                    共 {audit.checklist.length} 项审核标准，已达标 {audit.checklist.filter(c => c.done).length} 项
+                  </Text>
+                </View>
+
+                {audit.checklist.map(item => (
+                  <View
+                    key={item.key}
+                    className={classnames(styles.auditDetailItem, item.done && styles.auditItemPass)}
+                  >
+                    <View className={styles.auditDetailHeader}>
+                      <Text className={classnames(styles.auditDetailDot, item.done ? styles.passDot : styles.pendingDot)}>
+                        {item.done ? '✓' : '!'}
+                      </Text>
+                      <Text className={styles.auditDetailLabel}>{item.label}</Text>
+                      <Text className={classnames(styles.auditDetailStatus, item.done ? styles.statusPass : styles.statusPending)}>
+                        {item.done ? '达标' : '未达标'}
+                      </Text>
+                    </View>
+                    <Text className={styles.auditDetailDesc}>{item.detail}</Text>
+                  </View>
+                ))}
+
+                <View className={styles.auditDetailSection}>
+                  <Text className={styles.detailSectionTitle}>最近3次考核</Text>
+                  {audit.recentExams.length > 0 ? (
+                    audit.recentExams.map((record, i) => (
+                      <View key={record.id} className={styles.auditExamRow}>
+                        <Text className={styles.auditExamIndex}>#{i + 1}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text className={styles.auditExamDate}>{formatFullDate(record.date)}</Text>
+                          <Text className={styles.auditExamMeta}>
+                            {record.role === 'nurse' ? '护士' : '消毒员'} · {record.correctCount}/{record.totalQuestions}题
+                          </Text>
+                        </View>
+                        <View style={{ textAlign: 'right' }}>
+                          <Text className={classnames(styles.auditExamScore, record.pass ? styles.statusPass : styles.statusPending)}>
+                            {record.score}分
+                          </Text>
+                          <Text className={styles.auditExamResult}>
+                            {record.pass ? '通过' : '未通过'}
+                          </Text>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={{ fontSize: '28rpx', color: '#86909C', textAlign: 'center', padding: '16rpx' }}>
+                      暂无考核记录
+                    </Text>
+                  )}
+                </View>
+
+                {audit.unmasteredCount > 0 && (
+                  <View className={styles.auditDetailSection}>
+                    <Text className={styles.detailSectionTitle}>未掌握错题 ({audit.unmasteredCount}道)</Text>
+                    <Text style={{ fontSize: '28rpx', color: $color-text-secondary, lineHeight: '40rpx' }}>
+                      前往"错题纠偏"页面完成专项练习，连续答对3次可标记为已掌握
+                    </Text>
+                  </View>
+                )}
+
+                {audit.pendingTaskCount > 0 && (
+                  <View className={styles.auditDetailSection}>
+                    <Text className={styles.detailSectionTitle}>待完成补训 ({audit.pendingTaskCount}项)</Text>
+                    <Text style={{ fontSize: '28rpx', color: $color-text-secondary, lineHeight: '40rpx' }}>
+                      在下方"补训任务"列表点击即可标记完成
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+            <View style={{ padding: '24rpx 32rpx 32rpx' }}>
+              <View
+                className={classnames(styles.auditSubmitBtn, audit.canSubmit ? styles.canSubmitBtn : styles.cantSubmitBtn)}
+                onClick={() => {
+                  if (audit.canSubmit) {
+                    Taro.showToast({ title: '已提交审核申请', icon: 'success' });
+                    setShowAuditModal(false);
+                  } else {
+                    Taro.showToast({
+                      title: `还差${audit.checklist.filter(c => !c.done).length}项达标`,
+                      icon: 'none'
+                    });
+                  }
+                }}
+              >
+                <Text>
+                  {audit.canSubmit ? '提交上岗审核' : `还差${audit.checklist.filter(c => !c.done).length}项，无法提交`}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
       )}

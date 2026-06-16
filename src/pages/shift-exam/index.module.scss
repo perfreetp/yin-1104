@@ -187,6 +187,136 @@
   color: $color-text-secondary;
 }
 
+.btnJumpError {
+  background: $color-info-bg;
+  color: $color-info;
+  border: 2rpx solid rgba(24, 144, 255, 0.2);
+  margin-top: $spacing-md;
+  font-weight: $font-weight-semibold;
+  width: 100%;
+  height: $button-height-lg;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    background: rgba(24, 144, 255, 0.15);
+  }
+}
+
+.summaryBlock {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+}
+
+.summaryHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-sm;
+}
+
+.summaryIcon {
+  font-size: 32rpx;
+}
+
+.summaryTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+
+  &.summaryMastered {
+    color: $color-success;
+  }
+
+  &.summaryPending {
+    color: $color-warning;
+  }
+}
+
+.summaryList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.summaryItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  padding: $spacing-xs $spacing-sm;
+  background: $color-bg-card;
+  border-radius: $radius-sm;
+}
+
+.summaryIndex {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: $radius-round;
+  background: rgba(0, 180, 42, 0.15);
+  color: $color-success;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.indexPending {
+    background: rgba(255, 125, 0, 0.15);
+    color: $color-warning;
+  }
+}
+
+.summaryText {
+  flex: 1;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  line-height: $line-height-normal;
+}
+
+.summaryMore {
+  font-size: $font-size-xs;
+  color: $color-info;
+  text-align: center;
+  padding: $spacing-xs 0 0;
+}
+
+.summaryProgressRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-sm;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+}
+
+.summaryProgressBar {
+  flex: 1;
+  height: 16rpx;
+  background: $color-border;
+  border-radius: $radius-round;
+  overflow: hidden;
+}
+
+.summaryProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-round;
+  transition: width $transition-normal;
+}
+
+.summaryProgressText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  white-space: nowrap;
+}
+
 .btnFull {
   width: 100%;
 }

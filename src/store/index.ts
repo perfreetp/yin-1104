@@ -140,30 +140,29 @@ const buildWrongQuestionsFromHistory = (
       counter[qId].wrongCount += 1
       counter[qId].lastWrong = record.date
     })
-
-    const correctQIds = record.wrongQuestionIds.length > 0
-      ? null
-      : null
   })
 
   practiceRecords.forEach(rec => {
     const qId = rec.questionId
-    if (!counter[qId]) {
-      counter[qId] = { wrongCount: 0, correctCount: 0, lastWrong: '', lastPractice: '' }
-    }
     const date = new Date(rec.timestamp).toISOString().split('T')[0]
-    counter[qId].lastPractice = date
-    if (rec.isCorrect) {
-      counter[qId].correctCount += 1
-    } else {
+    if (!rec.isCorrect) {
+      if (!counter[qId]) {
+        counter[qId] = { wrongCount: 0, correctCount: 0, lastWrong: '', lastPractice: '' }
+      }
       counter[qId].wrongCount += 1
       counter[qId].lastWrong = date
+      counter[qId].lastPractice = date
+    } else {
+      if (counter[qId]) {
+        counter[qId].correctCount += 1
+        counter[qId].lastPractice = date
+      }
     }
   })
 
   const result: WrongQuestion[] = []
   Object.entries(counter).forEach(([qId, c]) => {
-    if (c.wrongCount <= 0 && c.correctCount <= 0) return
+    if (c.wrongCount <= 0) return
     const question = questions.find(q => q.id === qId)
     if (!question) return
     const mastery = calcMasteryLevel(c.correctCount, c.wrongCount)
@@ -261,9 +260,10 @@ export const useAppStore = create<AppState>()(
       },
 
       markTaskCompleted: (taskId: string) => {
+        const today = new Date().toISOString().split('T')[0]
         set(state => ({
           trainingTasks: state.trainingTasks.map(t =>
-            t.id === taskId ? { ...t, status: 'completed' as const } : t
+            t.id === taskId ? { ...t, status: 'completed' as const, completedAt: today } : t
           )
         }))
       },
@@ -486,7 +486,7 @@ export const useAppStore = create<AppState>()(
         const totalWrong = state.wrongQuestions.length
         const practiceScore = totalWrong > 0
           ? Math.max(0, Math.round(((totalWrong - unmasteredCount) / totalWrong) * 25))
-          : (state.practiceRecords.length > 0 ? 25 : 0)
+          : 0
         items.push({
           key: 'practice',
           label: '错题掌握',
@@ -582,13 +582,15 @@ export const useAppStore = create<AppState>()(
 
         state.trainingTasks.forEach(task => {
           if (task.status === 'completed') {
-            const ts = new Date(task.createdAt + 'T14:00:00').getTime()
+            const dateStr = task.completedAt || task.createdAt
+            const ts = new Date(dateStr + 'T14:00:00').getTime()
             result.push({
               id: task.id,
               type: 'training',
-              date: task.createdAt,
+              date: dateStr,
               timestamp: ts,
               title: `补训完成：${task.title}`,
+              subtitle: `来源分类：${task.sourceCategory}`,
               detail: task.description,
               trainingTask: task
             })

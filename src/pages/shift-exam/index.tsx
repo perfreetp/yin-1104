@@ -23,7 +23,10 @@ const ShiftExamPage: React.FC = () => {
   const [filterMode, setFilterMode] = useState<'all' | 'wrong'>('all');
 
   const [practiceCategory, setPracticeCategory] = useState<string>('');
+  const [masterySnapshot, setMasterySnapshot] = useState<Record<string, boolean>>({});
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const wrongQuestions = useAppStore(s => s.wrongQuestions);
 
   const getRoleExamQuestions = useAppStore(s => s.getRoleExamQuestions);
   const getCategoryPracticeQuestions = useAppStore(s => s.getCategoryPracticeQuestions);
@@ -71,10 +74,41 @@ const ShiftExamPage: React.FC = () => {
       Taro.showToast({ title: '该分类暂无题目', icon: 'none' });
       return;
     }
+    const snap: Record<string, boolean> = {};
+    wrongQuestions.forEach(wq => { snap[wq.questionId] = wq.mastered; });
+    setMasterySnapshot(snap);
     setPracticeCategory(category);
     beginSession(questions);
     setExamStatus('practice');
   };
+
+  const masterySummary = useMemo(() => {
+    if (!practiceCategory) return null;
+
+    const masteredNow: { id: string; text: string }[] = [];
+    const stillNeed: { id: string; text: string }[] = [];
+    const improved: { id: string; text: string; level: number }[] = [];
+
+    const relatedWrong = wrongQuestions.filter(wq => wq.category === practiceCategory);
+    relatedWrong.forEach(wq => {
+      const wasMastered = masterySnapshot[wq.questionId] ?? wq.mastered;
+      if (wq.mastered && !wasMastered) {
+        masteredNow.push({ id: wq.questionId, text: wq.questionText });
+      } else if (!wq.mastered) {
+        stillNeed.push({ id: wq.questionId, text: wq.questionText });
+      }
+      if (Object.keys(masterySnapshot).length > 0 && wq.masteryLevel > (masterySnapshot[wq.questionId] !== undefined ? 0 : -1)) {
+        const prevLevel = masterySnapshot[wq.questionId] !== undefined
+          ? (Object.entries(masterySnapshot).includes([wq.questionId, wq.mastered]) ? wq.masteryLevel : 0)
+          : 0;
+        if (wq.masteryLevel > prevLevel) {
+          improved.push({ id: wq.questionId, text: wq.questionText, level: wq.masteryLevel });
+        }
+      }
+    });
+
+    return { masteredNow, stillNeed, improved: improved.length > 2 ? improved.slice(0, 3) : improved, total: relatedWrong.length };
+  }, [practiceCategory, wrongQuestions, masterySnapshot]);
 
   useEffect(() => {
     return () => {
@@ -399,6 +433,81 @@ const ShiftExamPage: React.FC = () => {
               <Text className={styles.resultStatLabel}>用时</Text>
             </View>
           </View>
+
+          {practiceCategory && masterySummary && (
+            <View className={styles.section}>
+              <View className={styles.sectionHeader}>
+                <Text className={styles.sectionTitle}>
+                  <Text className={styles.sectionTitleIcon}>🎯</Text>
+                  {practiceCategory} · 分类掌握小结
+                </Text>
+              </View>
+
+              {masterySummary.masteredNow.length > 0 && (
+                <View className={styles.summaryBlock}>
+                  <View className={styles.summaryHeader}>
+                    <Text className={styles.summaryIcon}>🎉</Text>
+                    <Text className={classnames(styles.summaryTitle, styles.summaryMastered)}>
+                      本次掌握 {masterySummary.masteredNow.length} 道
+                    </Text>
+                  </View>
+                  <View className={styles.summaryList}>
+                    {masterySummary.masteredNow.map((it, i) => (
+                      <View key={it.id} className={styles.summaryItem}>
+                        <Text className={styles.summaryIndex}>{i + 1}</Text>
+                        <Text className={styles.summaryText} numberOfLines={2}>{it.text}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {masterySummary.stillNeed.length > 0 && (
+                <View className={styles.summaryBlock}>
+                  <View className={styles.summaryHeader}>
+                    <Text className={styles.summaryIcon}>💪</Text>
+                    <Text className={classnames(styles.summaryTitle, styles.summaryPending)}>
+                      还要再练 {masterySummary.stillNeed.length} 道
+                    </Text>
+                  </View>
+                  <View className={styles.summaryList}>
+                    {masterySummary.stillNeed.slice(0, 3).map((it, i) => (
+                      <View key={it.id} className={styles.summaryItem}>
+                        <Text className={classnames(styles.summaryIndex, styles.indexPending)}>{i + 1}</Text>
+                        <Text className={styles.summaryText} numberOfLines={2}>{it.text}</Text>
+                      </View>
+                    ))}
+                    {masterySummary.stillNeed.length > 3 && (
+                      <Text className={styles.summaryMore}>
+                        还有 {masterySummary.stillNeed.length - 3} 道，跳错题纠偏继续练
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {masterySummary.total > 0 && (
+                <View className={styles.summaryProgressRow}>
+                  <View className={styles.summaryProgressBar}>
+                    <View
+                      className={styles.summaryProgressFill}
+                      style={{ width: `${(masterySummary.total - masterySummary.stillNeed.length) / masterySummary.total * 100}%` }}
+                    />
+                  </View>
+                  <Text className={styles.summaryProgressText}>
+                    本分类掌握度：{masterySummary.total - masterySummary.stillNeed.length}/{masterySummary.total}
+                  </Text>
+                </View>
+              )}
+
+              <View
+                className={classnames(styles.btn, styles.btnJumpError)}
+                onClick={() => Taro.switchTab({ url: '/pages/error-correction/index' })}
+              >
+                <Text>📍 跳错题纠偏继续练</Text>
+              </View>
+            </View>
+          )}
 
           {wrongQuestions.length > 0 && (
             <View className={styles.section}>

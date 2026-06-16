@@ -100,6 +100,7 @@ export interface TrainingTask {
   deadline: string
   sourceCategory: string
   createdAt: string
+  completedAt?: string
 }
 
 export interface StatItem {
