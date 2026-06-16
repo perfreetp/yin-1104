@@ -550,3 +550,296 @@
   background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
   color: $color-text-white;
 }
+
+.timeline {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-md $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.timelineItem {
+  display: flex;
+  gap: $spacing-md;
+  padding-bottom: $spacing-lg;
+  position: relative;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.lastTimelineItem {
+  padding-bottom: 0;
+}
+
+.timelineLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 56rpx;
+  flex-shrink: 0;
+}
+
+.timelineDot {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-round;
+  background: $color-primary-bg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.timelineDotIcon {
+  font-size: 26rpx;
+}
+
+.timelineLine {
+  width: 4rpx;
+  flex: 1;
+  background: $color-divider;
+  margin-top: $spacing-xs;
+}
+
+.timelineContent {
+  flex: 1;
+  min-width: 0;
+  padding-top: 8rpx;
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.timelineDate {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.timelineTag {
+  font-size: $font-size-xs;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-round;
+
+  &.tagsign {
+    background: rgba(0, 168, 112, 0.1);
+    color: $color-primary;
+  }
+
+  &.tagexam {
+    background: rgba(0, 107, 255, 0.1);
+    color: $color-info;
+  }
+
+  &.tagpractice {
+    background: rgba(255, 192, 0, 0.15);
+    color: #FFB800;
+  }
+
+  &.tagtraining {
+    background: rgba(0, 180, 42, 0.1);
+    color: $color-success;
+  }
+}
+
+.timelineTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: 4rpx;
+}
+
+.timelineSubtitle {
+  font-size: $font-size-sm;
+  color: $color-info;
+  margin-bottom: 4rpx;
+}
+
+.timelineDetail {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-normal;
+}
+
+.emptyTimeline {
+  padding: $spacing-xl $spacing-lg;
+  text-align: center;
+}
+
+.emptyTimelineIcon {
+  font-size: 80rpx;
+  display: block;
+  margin-bottom: $spacing-sm;
+}
+
+.emptyTimelineText {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.emptyTimelineDesc {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.timelineModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $page-padding;
+}
+
+.timelineModalContent {
+  width: 100%;
+  max-height: 85vh;
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineModalHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-md $spacing-lg;
+  border-bottom: 2rpx solid $color-divider;
+  position: relative;
+}
+
+.timelineModalIcon {
+  font-size: 36rpx;
+}
+
+.timelineModalTitle {
+  flex: 1;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.timelineModalClose {
+  font-size: 36rpx;
+  color: $color-text-tertiary;
+}
+
+.timelineModalBody {
+  padding: $spacing-lg;
+}
+
+.timelineModalRow {
+  display: flex;
+  align-items: flex-start;
+  padding: $spacing-sm 0;
+  border-bottom: 2rpx solid $color-divider;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.rowLabel {
+  width: 140rpx;
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  flex-shrink: 0;
+}
+
+.rowValue {
+  flex: 1;
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  line-height: $line-height-normal;
+}
+
+.detailSection {
+  margin-top: $spacing-lg;
+  padding-top: $spacing-md;
+  border-top: 2rpx dashed $color-divider;
+}
+
+.detailSectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  margin-bottom: $spacing-md;
+}
+
+.detailStatsRow {
+  display: flex;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.detailStat {
+  flex: 1;
+  padding: $spacing-sm;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  text-align: center;
+}
+
+.detailStatValue {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.detailStatLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.detailBlock {
+  padding: $spacing-sm 0;
+}
+
+.detailBlockLabel {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: 8rpx;
+}
+
+.detailBlockValue {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  line-height: $line-height-normal;
+}
+
+.detailTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.detailTag {
+  font-size: $font-size-xs;
+  padding: 6rpx 20rpx;
+  background: rgba(245, 63, 63, 0.1);
+  color: $color-error;
+  border-radius: $radius-round;
+}
+
+.successText {
+  color: $color-success !important;
+  font-weight: $font-weight-semibold;
+}

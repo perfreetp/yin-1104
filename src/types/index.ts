@@ -108,3 +108,18 @@ export interface StatItem {
   unit?: string
   trend?: 'up' | 'down'
 }
+
+export type TimelineItemType = 'sign' | 'exam' | 'practice' | 'training'
+
+export interface TimelineItem {
+  id: string
+  type: TimelineItemType
+  date: string
+  timestamp: number
+  title: string
+  subtitle?: string
+  detail: string
+  examRecord?: ExamRecord
+  trainingTask?: TrainingTask
+  masteryChange?: number
+}

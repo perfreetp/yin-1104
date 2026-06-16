@@ -7,7 +7,8 @@ import {
   WrongQuestion,
   PracticeRecord,
   TrainingTask,
-  Question
+  Question,
+  TimelineItem
 } from '@/types'
 import { questions } from '@/data/questions'
 import { userProfile as defaultUserProfile, examRecords as defaultExamRecords } from '@/data/user'
@@ -26,14 +27,17 @@ interface AppState {
   removeWrongQuestion: (questionId: string) => void
   addCategoryToTraining: (category: string) => TrainingTask | null
   generateTrainingTasks: () => TrainingTask[]
+  rebuildWrongQuestionsFromHistory: () => void
   getWeakPoints: () => string[]
   getStatistics: () => { totalExams: number; passRate: number; avgScore: number }
   getRoleExamQuestions: (role: 'nurse' | 'disinfector', count: number) => Question[]
+  getCategoryPracticeQuestions: (category: string, count: number) => Question[]
   getReadinessScore: () => {
     total: number
     items: { key: string; label: string; score: number; max: number; done: boolean }[]
   }
   getQuestionMastery: (questionId: string) => number
+  getTimeline: () => TimelineItem[]
 }
 
 const WEAK_POINT_MAP: Record<string, string> = {
@@ -104,29 +108,6 @@ const taroStorage = {
   }
 }
 
-const getInitialWrongQuestions = (): WrongQuestion[] => {
-  const initialWrongIds = ['q2', 'q5', 'q6', 'q9', 'q12']
-  const today = new Date().toISOString().split('T')[0]
-  return initialWrongIds
-    .map(id => questions.find(q => q.id === id))
-    .filter((q): q is Question => q !== undefined)
-    .map((q, i) => ({
-      ...q,
-      wrongCount: [3, 2, 4, 1, 2][i],
-      correctCount: 0,
-      lastWrongTime: today,
-      lastPracticeTime: '',
-      masteryLevel: 0,
-      mastered: false
-    }))
-}
-
-const addDays = (dateStr: string, days: number): string => {
-  const date = new Date(dateStr)
-  date.setDate(date.getDate() + days)
-  return date.toISOString().split('T')[0]
-}
-
 const calcMasteryLevel = (correctCount: number, wrongCount: number): 0 | 1 | 2 | 3 | 4 | 5 => {
   const diff = correctCount - wrongCount
   if (diff >= MASTERY_THRESHOLD * 2) return 5
@@ -137,12 +118,75 @@ const calcMasteryLevel = (correctCount: number, wrongCount: number): 0 | 1 | 2 |
   return 0
 }
 
+const addDays = (dateStr: string, days: number): string => {
+  const date = new Date(dateStr)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().split('T')[0]
+}
+
+const buildWrongQuestionsFromHistory = (
+  examRecords: ExamRecord[],
+  practiceRecords: PracticeRecord[]
+): WrongQuestion[] => {
+  const counter: Record<string, { wrongCount: number; correctCount: number; lastWrong: string; lastPractice: string }> = {}
+
+  const today = new Date().toISOString().split('T')[0]
+
+  examRecords.forEach(record => {
+    record.wrongQuestionIds.forEach(qId => {
+      if (!counter[qId]) {
+        counter[qId] = { wrongCount: 0, correctCount: 0, lastWrong: '', lastPractice: '' }
+      }
+      counter[qId].wrongCount += 1
+      counter[qId].lastWrong = record.date
+    })
+
+    const correctQIds = record.wrongQuestionIds.length > 0
+      ? null
+      : null
+  })
+
+  practiceRecords.forEach(rec => {
+    const qId = rec.questionId
+    if (!counter[qId]) {
+      counter[qId] = { wrongCount: 0, correctCount: 0, lastWrong: '', lastPractice: '' }
+    }
+    const date = new Date(rec.timestamp).toISOString().split('T')[0]
+    counter[qId].lastPractice = date
+    if (rec.isCorrect) {
+      counter[qId].correctCount += 1
+    } else {
+      counter[qId].wrongCount += 1
+      counter[qId].lastWrong = date
+    }
+  })
+
+  const result: WrongQuestion[] = []
+  Object.entries(counter).forEach(([qId, c]) => {
+    if (c.wrongCount <= 0 && c.correctCount <= 0) return
+    const question = questions.find(q => q.id === qId)
+    if (!question) return
+    const mastery = calcMasteryLevel(c.correctCount, c.wrongCount)
+    result.push({
+      ...question,
+      wrongCount: c.wrongCount,
+      correctCount: c.correctCount,
+      lastWrongTime: c.lastWrong || today,
+      lastPracticeTime: c.lastPractice,
+      masteryLevel: mastery,
+      mastered: c.correctCount >= MASTERY_THRESHOLD && mastery >= 4
+    })
+  })
+
+  return result.sort((a, b) => b.wrongCount - a.wrongCount)
+}
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       userProfile: defaultUserProfile,
       examRecords: defaultExamRecords,
-      wrongQuestions: getInitialWrongQuestions(),
+      wrongQuestions: buildWrongQuestionsFromHistory(defaultExamRecords, []),
       practiceRecords: [],
       trainingTasks: [],
 
@@ -159,31 +203,10 @@ export const useAppStore = create<AppState>()(
 
       addExamRecord: (record: ExamRecord) => {
         set(state => {
-          const newWrongQuestions = [...state.wrongQuestions]
-          const today = new Date().toISOString().split('T')[0]
-
-          record.wrongQuestionIds.forEach(qId => {
-            const existing = newWrongQuestions.find(wq => wq.id === qId)
-            const question = questions.find(q => q.id === qId)
-            if (existing) {
-              existing.wrongCount += 1
-              existing.lastWrongTime = today
-              existing.masteryLevel = calcMasteryLevel(existing.correctCount, existing.wrongCount)
-              existing.mastered = false
-            } else if (question) {
-              newWrongQuestions.push({
-                ...question,
-                wrongCount: 1,
-                correctCount: 0,
-                lastWrongTime: today,
-                lastPracticeTime: today,
-                masteryLevel: 0,
-                mastered: false
-              })
-            }
-          })
-
           const allRecords = [record, ...state.examRecords]
+          const newWrong = buildWrongQuestionsFromHistory(allRecords, state.practiceRecords)
+
+          const today = new Date().toISOString().split('T')[0]
           const recentRecords = allRecords.slice(0, 10)
           const categoryCount: Record<string, number> = {}
           recentRecords.forEach(r => {
@@ -220,7 +243,7 @@ export const useAppStore = create<AppState>()(
 
           return {
             examRecords: allRecords,
-            wrongQuestions: newWrongQuestions,
+            wrongQuestions: newWrong,
             trainingTasks: [...newTasks, ...state.trainingTasks]
           }
         })
@@ -228,39 +251,11 @@ export const useAppStore = create<AppState>()(
 
       addPracticeRecord: (record: PracticeRecord, question: Question) => {
         set(state => {
-          const newWrongQuestions = [...state.wrongQuestions]
-          const today = new Date().toISOString().split('T')[0]
-
-          const existing = newWrongQuestions.find(wq => wq.id === question.id)
-          if (existing) {
-            existing.lastPracticeTime = today
-            if (record.isCorrect) {
-              existing.correctCount += 1
-              existing.masteryLevel = calcMasteryLevel(existing.correctCount, existing.wrongCount)
-              if (existing.correctCount >= MASTERY_THRESHOLD && existing.masteryLevel >= 4) {
-                existing.mastered = true
-              }
-            } else {
-              existing.wrongCount += 1
-              existing.lastWrongTime = today
-              existing.masteryLevel = calcMasteryLevel(existing.correctCount, existing.wrongCount)
-              existing.mastered = false
-            }
-          } else if (!record.isCorrect) {
-            newWrongQuestions.push({
-              ...question,
-              wrongCount: 1,
-              correctCount: 0,
-              lastWrongTime: today,
-              lastPracticeTime: today,
-              masteryLevel: 0,
-              mastered: false
-            })
-          }
-
+          const newPracticeRecords = [record, ...state.practiceRecords]
+          const newWrong = buildWrongQuestionsFromHistory(state.examRecords, newPracticeRecords)
           return {
-            practiceRecords: [record, ...state.practiceRecords],
-            wrongQuestions: newWrongQuestions
+            practiceRecords: newPracticeRecords,
+            wrongQuestions: newWrong
           }
         })
       },
@@ -355,6 +350,12 @@ export const useAppStore = create<AppState>()(
         return [...newTasks, ...state.trainingTasks]
       },
 
+      rebuildWrongQuestionsFromHistory: () => {
+        const state = get()
+        const newWrong = buildWrongQuestionsFromHistory(state.examRecords, state.practiceRecords)
+        set({ wrongQuestions: newWrong })
+      },
+
       getWeakPoints: () => {
         const state = get()
         const categoryCount: Record<string, number> = {}
@@ -442,6 +443,20 @@ export const useAppStore = create<AppState>()(
         return selected.sort(() => Math.random() - 0.5)
       },
 
+      getCategoryPracticeQuestions: (category: string, count: number) => {
+        const categoryQuestions = questions.filter(q => q.category === category)
+        const wrong = get().wrongQuestions
+        const unmasteredIds = wrong.filter(wq => !wq.mastered && wq.category === category).map(wq => wq.id)
+
+        const wrongQ = categoryQuestions.filter(q => unmasteredIds.includes(q.id))
+        const normalQ = categoryQuestions.filter(q => !unmasteredIds.includes(q.id))
+
+        const result: Question[] = []
+        result.push(...wrongQ.sort(() => Math.random() - 0.5).slice(0, Math.ceil(count * 0.7)))
+        result.push(...normalQ.sort(() => Math.random() - 0.5))
+        return result.slice(0, count)
+      },
+
       getReadinessScore: () => {
         const state = get()
         const items: { key: string; label: string; score: number; max: number; done: boolean }[] = []
@@ -471,7 +486,7 @@ export const useAppStore = create<AppState>()(
         const totalWrong = state.wrongQuestions.length
         const practiceScore = totalWrong > 0
           ? Math.max(0, Math.round(((totalWrong - unmasteredCount) / totalWrong) * 25))
-          : 0
+          : (state.practiceRecords.length > 0 ? 25 : 0)
         items.push({
           key: 'practice',
           label: '错题掌握',
@@ -502,11 +517,98 @@ export const useAppStore = create<AppState>()(
         const wq = get().wrongQuestions.find(q => q.id === questionId)
         if (!wq) return 0
         return wq.masteryLevel
+      },
+
+      getTimeline: () => {
+        const state = get()
+        const result: TimelineItem[] = []
+
+        if (state.userProfile.signedProcess && state.userProfile.signDate) {
+          const ts = new Date(state.userProfile.signDate + 'T10:00:00').getTime()
+          result.push({
+            id: `sign_${ts}`,
+            type: 'sign',
+            date: state.userProfile.signDate,
+            timestamp: ts,
+            title: '流程确认书签署',
+            detail: `已签署上岗流程确认书，确认掌握消毒追溯规范`
+          })
+        }
+
+        state.examRecords.forEach(record => {
+          const ts = new Date(record.date + 'T10:00:00').getTime()
+          const roleName = record.role === 'nurse' ? '护士' : '消毒员'
+          const passText = record.pass ? '通过' : '未通过'
+          const cats = record.wrongCategories.length > 0
+            ? `薄弱环节：${record.wrongCategories.join('、')}`
+            : '全部掌握'
+          result.push({
+            id: record.id,
+            type: 'exam',
+            date: record.date,
+            timestamp: ts,
+            title: `${roleName}考核 · ${passText}`,
+            subtitle: `${record.score}分 · ${record.correctCount}/${record.totalQuestions}题`,
+            detail: cats,
+            examRecord: record
+          })
+        })
+
+        const dailyPracticeMap: Record<string, { total: number; correct: number; categories: Set<string> }> = {}
+        state.practiceRecords.forEach(rec => {
+          const date = new Date(rec.timestamp).toISOString().split('T')[0]
+          if (!dailyPracticeMap[date]) {
+            dailyPracticeMap[date] = { total: 0, correct: 0, categories: new Set() }
+          }
+          dailyPracticeMap[date].total += 1
+          if (rec.isCorrect) dailyPracticeMap[date].correct += 1
+          dailyPracticeMap[date].categories.add(rec.category)
+        })
+
+        Object.entries(dailyPracticeMap).forEach(([date, data]) => {
+          const rate = Math.round((data.correct / data.total) * 100)
+          const cats = Array.from(data.categories).join('、')
+          result.push({
+            id: `practice_${date}`,
+            type: 'practice',
+            date,
+            timestamp: new Date(date + 'T15:00:00').getTime(),
+            title: '错题纠偏练习',
+            subtitle: `${data.correct}/${data.total}题正确 · 正确率${rate}%`,
+            detail: `练习分类：${cats || '综合'}`,
+            masteryChange: rate
+          })
+        })
+
+        state.trainingTasks.forEach(task => {
+          if (task.status === 'completed') {
+            const ts = new Date(task.createdAt + 'T14:00:00').getTime()
+            result.push({
+              id: task.id,
+              type: 'training',
+              date: task.createdAt,
+              timestamp: ts,
+              title: `补训完成：${task.title}`,
+              detail: task.description,
+              trainingTask: task
+            })
+          }
+        })
+
+        return result.sort((a, b) => b.timestamp - a.timestamp)
       }
     }),
     {
       name: 'disinfection-training-storage',
-      storage: createJSONStorage(() => taroStorage)
+      storage: createJSONStorage(() => taroStorage),
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error('[Store] Rehydrate error:', error)
+        } else if (state) {
+          console.log('[Store] Rehydrated, rebuilding wrong questions...')
+          state.rebuildWrongQuestionsFromHistory()
+        }
+      }
     }
   )
 )

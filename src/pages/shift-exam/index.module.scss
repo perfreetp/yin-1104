@@ -508,7 +508,7 @@
 
 .detailAddBtn {
   @include button-reset;
-  width: 100%;
+  width: calc(100% - 2 * #{$spacing-lg});
   height: $button-height-lg;
   background: linear-gradient(135deg, $color-warning 0%, #FFC53D 100%);
   color: $color-text-white;
@@ -523,4 +523,24 @@
   &:active {
     opacity: 0.9;
   }
+
+  &:not(.show) {
+    display: none;
+  }
+}
+
+.weakCategoryCount {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.practiceBtn {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%) !important;
+  color: $color-text-white !important;
+}
+
+.resultHeader.practice {
+  background: linear-gradient(135deg, $color-info 0%, #4080FF 100%) !important;
 }

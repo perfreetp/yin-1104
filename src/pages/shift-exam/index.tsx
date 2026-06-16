@@ -5,11 +5,11 @@ import styles from './index.module.scss';
 import classnames from 'classnames';
 import QuestionCard from '@/components/QuestionCard';
 import ProgressBar from '@/components/ProgressBar';
-import { Question, ExamRecord } from '@/types';
+import { Question, ExamRecord, PracticeRecord } from '@/types';
 import { useAppStore } from '@/store';
 
 type RoleType = 'nurse' | 'disinfector';
-type ExamStatus = 'idle' | 'exam' | 'result';
+type ExamStatus = 'idle' | 'exam' | 'result' | 'practice';
 
 const ShiftExamPage: React.FC = () => {
   const [role, setRole] = useState<RoleType>('disinfector');
@@ -21,10 +21,14 @@ const ShiftExamPage: React.FC = () => {
   const [hasSaved, setHasSaved] = useState(false);
   const [showQuestionDetail, setShowQuestionDetail] = useState<number | null>(null);
   const [filterMode, setFilterMode] = useState<'all' | 'wrong'>('all');
+
+  const [practiceCategory, setPracticeCategory] = useState<string>('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const getRoleExamQuestions = useAppStore(s => s.getRoleExamQuestions);
+  const getCategoryPracticeQuestions = useAppStore(s => s.getCategoryPracticeQuestions);
   const addExamRecord = useAppStore(s => s.addExamRecord);
+  const addPracticeRecord = useAppStore(s => s.addPracticeRecord);
   const addCategoryToTraining = useAppStore(s => s.addCategoryToTraining);
 
   const roleName: Record<RoleType, string> = {
@@ -39,22 +43,37 @@ const ShiftExamPage: React.FC = () => {
 
   const examCount = 10;
   const passScore = 80;
+  const practiceCount = 5;
 
   const startExam = () => {
     const questions = getRoleExamQuestions(role, examCount);
-    console.log('[Exam] Generated questions for role:', role, 'count:', questions.length);
+    beginSession(questions);
+    setExamStatus('exam');
+  };
+
+  const beginSession = (questions: Question[]) => {
+    console.log('[Session] Start with', questions.length, 'questions');
     setExamQuestions(questions);
     setCurrentIndex(0);
     setAnswers({});
     setTimer(0);
     setHasSaved(false);
     setFilterMode('all');
-    setExamStatus('exam');
-
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimer(prev => prev + 1);
     }, 1000);
+  };
+
+  const startPractice = (category: string) => {
+    const questions = getCategoryPracticeQuestions(category, practiceCount);
+    if (questions.length === 0) {
+      Taro.showToast({ title: '该分类暂无题目', icon: 'none' });
+      return;
+    }
+    setPracticeCategory(category);
+    beginSession(questions);
+    setExamStatus('practice');
   };
 
   useEffect(() => {
@@ -122,10 +141,28 @@ const ShiftExamPage: React.FC = () => {
     return Array.from(cats);
   }, [wrongQuestions]);
 
+  const submitPractice = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    examQuestions.forEach((q, idx) => {
+      const correct = isAnswerCorrect(q, answers[idx]);
+      const record: PracticeRecord = {
+        id: `practice_${Date.now()}_${idx}`,
+        questionId: q.id,
+        questionType: q.type,
+        category: q.category,
+        isCorrect: correct,
+        timestamp: Date.now() + idx
+      };
+      addPracticeRecord(record, q);
+    });
+
+    setHasSaved(true);
+    setExamStatus('result');
+  };
+
   const submitExam = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+    if (timerRef.current) clearInterval(timerRef.current);
 
     if (!hasSaved) {
       const wrongIds: string[] = [];
@@ -160,6 +197,14 @@ const ShiftExamPage: React.FC = () => {
     setExamStatus('result');
   };
 
+  const handleSubmit = () => {
+    if (examStatus === 'practice') {
+      submitPractice();
+    } else {
+      submitExam();
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -178,6 +223,7 @@ const ShiftExamPage: React.FC = () => {
     setExamStatus('idle');
     setExamQuestions([]);
     setAnswers({});
+    setPracticeCategory('');
   };
 
   const handleAddToTraining = (category: string) => {
@@ -202,6 +248,17 @@ const ShiftExamPage: React.FC = () => {
   const currentDetailQuestion = showQuestionDetail !== null
     ? examQuestions[showQuestionDetail]
     : null;
+
+  const sessionTitle = examStatus === 'practice'
+    ? `${practiceCategory}专项练习`
+    : `${roleName[role]}考核`;
+
+  const canSubmit = () => {
+    if (examStatus === 'practice') {
+      return Object.keys(answers).length > 0;
+    }
+    return answeredCount > 0;
+  };
 
   return (
     <View className={styles.page}>
@@ -268,13 +325,13 @@ const ShiftExamPage: React.FC = () => {
         </ScrollView>
       )}
 
-      {examStatus === 'exam' && examQuestions.length > 0 && (
+      {(examStatus === 'exam' || examStatus === 'practice') && examQuestions.length > 0 && (
         <>
           <View className={styles.section}>
             <View className={styles.examCard}>
               <View className={styles.examHeader}>
                 <View className={styles.examInfo}>
-                  <Text>第 {currentIndex + 1} / {examQuestions.length} 题</Text>
+                  <Text>{sessionTitle} · 第 {currentIndex + 1} / {examQuestions.length} 题</Text>
                 </View>
                 <Text className={styles.timer}>⏱️ {formatTime(timer)}</Text>
               </View>
@@ -307,10 +364,10 @@ const ShiftExamPage: React.FC = () => {
               </View>
             ) : (
               <View
-                className={classnames(styles.btn, styles.btnPrimary, answeredCount === 0 && styles.btnDisabled)}
-                onClick={submitExam}
+                className={classnames(styles.btn, styles.btnPrimary, !canSubmit() && styles.btnDisabled)}
+                onClick={handleSubmit}
               >
-                <Text>提交答卷</Text>
+                <Text>{examStatus === 'practice' ? '提交练习' : '提交答卷'}</Text>
               </View>
             )}
           </View>
@@ -319,10 +376,12 @@ const ShiftExamPage: React.FC = () => {
 
       {examStatus === 'result' && (
         <View className={styles.resultPage}>
-          <View className={classnames(styles.resultHeader, !isPass && styles.fail)}>
+          <View className={classnames(styles.resultHeader, !isPass && examStatus !== 'practice' && styles.fail, examStatus === 'practice' && styles.practice)}>
             <Text className={styles.resultScore}>{score}分</Text>
             <Text className={styles.resultLabel}>
-              {isPass ? '🎉 考核通过，可以上岗' : '💪 继续努力，加油'}
+              {practiceCategory
+                ? `${practiceCategory}专项练习 · 正确${correctCount}/${examQuestions.length}题`
+                : (isPass ? '🎉 考核通过，可以上岗' : '💪 继续努力，加油')}
             </Text>
           </View>
 
@@ -346,18 +405,31 @@ const ShiftExamPage: React.FC = () => {
               <View className={styles.sectionHeader}>
                 <Text className={styles.sectionTitle}>
                   <Text className={styles.sectionTitleIcon}>📌</Text>
-                  薄弱环节
+                  薄弱环节 · 专项再练
                 </Text>
               </View>
               <View className={styles.weakCategories}>
                 {wrongCategories.map(cat => (
                   <View key={cat} className={styles.weakCategoryItem}>
-                    <Text className={styles.weakCategoryName}>{cat}</Text>
-                    <View
-                      className={styles.addTrainingBtn}
-                      onClick={() => handleAddToTraining(cat)}
-                    >
-                      <Text>加入补训</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text className={styles.weakCategoryName}>{cat}</Text>
+                      <Text className={styles.weakCategoryCount}>
+                        {wrongQuestions.filter(q => q.category === cat).length}道错题
+                      </Text>
+                    </View>
+                    <View style={{ display: 'flex', gap: '12rpx' }}>
+                      <View
+                        className={styles.addTrainingBtn}
+                        onClick={() => handleAddToTraining(cat)}
+                      >
+                        <Text>补训</Text>
+                      </View>
+                      <View
+                        className={classnames(styles.addTrainingBtn, styles.practiceBtn)}
+                        onClick={() => startPractice(cat)}
+                      >
+                        <Text>再练5题</Text>
+                      </View>
                     </View>
                   </View>
                 ))}
@@ -369,7 +441,7 @@ const ShiftExamPage: React.FC = () => {
             <View className={styles.sectionHeader}>
               <Text className={styles.sectionTitle}>
                 <Text className={styles.sectionTitleIcon}>📋</Text>
-                考试详情
+                {examStatus === 'practice' ? '练习详情' : '考试详情'}
               </Text>
               <View className={styles.filterTabs}>
                 <View
@@ -407,6 +479,11 @@ const ShiftExamPage: React.FC = () => {
                   </View>
                 );
               })}
+              {displayQuestions.length === 0 && (
+                <View style={{ padding: '40rpx', textAlign: 'center', color: '#86909C', fontSize: '28rpx' }}>
+                  🎉 太棒了，没有错题！
+                </View>
+              )}
             </View>
           </View>
 
@@ -414,9 +491,19 @@ const ShiftExamPage: React.FC = () => {
             <View className={classnames(styles.btn, styles.btnOutline)} onClick={restartExam}>
               <Text>返回首页</Text>
             </View>
-            <View className={classnames(styles.btn, styles.btnPrimary)} onClick={startExam}>
-              <Text>再考一次</Text>
-            </View>
+            {practiceCategory && wrongCategories.length > 0 && (
+              <View
+                className={classnames(styles.btn, styles.btnPrimary)}
+                onClick={() => startPractice(wrongCategories[0])}
+              >
+                <Text>继续练习</Text>
+              </View>
+            )}
+            {!practiceCategory && (
+              <View className={classnames(styles.btn, styles.btnPrimary)} onClick={startExam}>
+                <Text>再考一次</Text>
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -439,10 +526,12 @@ const ShiftExamPage: React.FC = () => {
             <View
               className={classnames(
                 styles.detailAddBtn,
-                wrongQuestions.some(q => q.id === currentDetailQuestion.id) && styles.show
+                wrongQuestions.some(q => q.id === currentDetailQuestion.id)
               )}
               onClick={() => {
-                handleAddToTraining(currentDetailQuestion.category);
+                if (wrongQuestions.some(q => q.id === currentDetailQuestion.id)) {
+                  handleAddToTraining(currentDetailQuestion.category);
+                }
               }}
             >
               <Text>加入补训计划</Text>

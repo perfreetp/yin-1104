@@ -3,31 +3,50 @@ import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import classnames from 'classnames';
-import { ExamRecord, TrainingTask } from '@/types';
+import { ExamRecord, TrainingTask, TimelineItem } from '@/types';
 import { useAppStore } from '@/store';
 
 const ProfilePage: React.FC = () => {
   const userProfile = useAppStore(s => s.userProfile);
   const examRecords = useAppStore(s => s.examRecords);
   const trainingTasks = useAppStore(s => s.trainingTasks);
+  const wrongQuestions = useAppStore(s => s.wrongQuestions);
+  const practiceRecords = useAppStore(s => s.practiceRecords);
+
   const getStatistics = useAppStore(s => s.getStatistics);
   const getWeakPoints = useAppStore(s => s.getWeakPoints);
   const getReadinessScore = useAppStore(s => s.getReadinessScore);
+  const getTimeline = useAppStore(s => s.getTimeline);
   const generateTrainingTasks = useAppStore(s => s.generateTrainingTasks);
   const markTaskCompleted = useAppStore(s => s.markTaskCompleted);
   const signProcess = useAppStore(s => s.signProcess);
 
   const [showSignModal, setShowSignModal] = useState(false);
+  const [selectedTimelineItem, setSelectedTimelineItem] = useState<TimelineItem | null>(null);
 
-  const stats = useMemo(() => getStatistics(), [getStatistics]);
-  const weakPoints = useMemo(() => getWeakPoints(), [getWeakPoints]);
-  const readiness = useMemo(() => getReadinessScore(), [getReadinessScore]);
+  const stats = useMemo(() => getStatistics(), [getStatistics, examRecords]);
+  const weakPoints = useMemo(() => getWeakPoints(), [getWeakPoints, wrongQuestions, examRecords]);
+  const readiness = useMemo(() => getReadinessScore(), [
+    getReadinessScore,
+    userProfile,
+    examRecords,
+    wrongQuestions,
+    trainingTasks,
+    practiceRecords
+  ]);
+  const timeline = useMemo(() => getTimeline(), [
+    getTimeline,
+    userProfile,
+    examRecords,
+    practiceRecords,
+    trainingTasks
+  ]);
   const tasks = useMemo(() => {
     if (trainingTasks.length === 0) {
       return generateTrainingTasks();
     }
     return trainingTasks;
-  }, [trainingTasks, generateTrainingTasks]);
+  }, [trainingTasks, generateTrainingTasks, wrongQuestions, examRecords]);
 
   const roleName = userProfile.role === 'nurse' ? '护士' : '消毒员';
 
@@ -59,6 +78,11 @@ const ProfilePage: React.FC = () => {
     return { month: `${month}月`, day: `${day}日` };
   };
 
+  const formatFullDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  };
+
   const pendingCount = tasks.filter(t => t.status === 'pending').length;
 
   const getReadinessLevel = () => {
@@ -68,6 +92,26 @@ const ProfilePage: React.FC = () => {
   };
 
   const readinessLevel = getReadinessLevel();
+
+  const getTimelineIcon = (type: string) => {
+    switch (type) {
+      case 'sign': return '📝';
+      case 'exam': return '📊';
+      case 'practice': return '📖';
+      case 'training': return '✅';
+      default: return '📌';
+    }
+  };
+
+  const getTimelineTypeName = (type: string) => {
+    switch (type) {
+      case 'sign': return '签署';
+      case 'exam': return '考核';
+      case 'practice': return '练习';
+      case 'training': return '补训';
+      default: return type;
+    }
+  };
 
   return (
     <ScrollView className={styles.page} scrollY>
@@ -139,9 +183,58 @@ const ProfilePage: React.FC = () => {
             <Text className={styles.statsLabel}>通过率</Text>
           </View>
           <View className={styles.statsItem}>
-            <Text className={styles.statsValue}>{stats.avgScore}</Text>
-            <Text className={styles.statsLabel}>平均分</Text>
+            <Text className={styles.statsValue}>{wrongQuestions.length}</Text>
+            <Text className={styles.statsLabel}>待掌握题</Text>
           </View>
+        </View>
+      </View>
+
+      <View className={styles.section}>
+        <View className={styles.sectionHeader}>
+          <Text className={styles.sectionTitle}>
+            <Text className={styles.sectionTitleIcon}>📅</Text>
+            档案时间线
+          </Text>
+          <Text className={styles.sectionMore}>共{timeline.length}条记录</Text>
+        </View>
+        <View className={styles.timeline}>
+          {timeline.map((item, index) => (
+            <View
+              key={item.id}
+              className={classnames(
+                styles.timelineItem,
+                index === timeline.length - 1 && styles.lastTimelineItem
+              )}
+              onClick={() => setSelectedTimelineItem(item)}
+            >
+              <View className={styles.timelineLeft}>
+                <View className={styles.timelineDot}>
+                  <Text className={styles.timelineDotIcon}>{getTimelineIcon(item.type)}</Text>
+                </View>
+                {index !== timeline.length - 1 && <View className={styles.timelineLine} />}
+              </View>
+              <View className={styles.timelineContent}>
+                <View className={styles.timelineHeader}>
+                  <Text className={styles.timelineDate}>{formatFullDate(item.date)}</Text>
+                  <View className={classnames(styles.timelineTag, styles[`tag${item.type}`])}>
+                    {getTimelineTypeName(item.type)}
+                  </View>
+                </View>
+                <Text className={styles.timelineTitle}>{item.title}</Text>
+                {item.subtitle && (
+                  <Text className={styles.timelineSubtitle}>{item.subtitle}</Text>
+                )}
+                <Text className={styles.timelineDetail} numberOfLines={2}>{item.detail}</Text>
+              </View>
+            </View>
+          ))}
+          {timeline.length === 0 && (
+            <View className={styles.emptyTimeline}>
+              <Text className={styles.emptyTimelineIcon}>📋</Text>
+              <Text className={styles.emptyTimelineText}>暂无档案记录</Text>
+              <Text className={styles.emptyTimelineDesc}>完成考核、签署流程后会自动生成时间线</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -268,7 +361,7 @@ const ProfilePage: React.FC = () => {
           </View>
           {userProfile.signedProcess && userProfile.signDate && (
             <Text style={{ fontSize: '24rpx', color: '#00B42A', marginBottom: '16rpx' }}>
-              签署时间：{userProfile.signDate}
+              签署时间：{formatFullDate(userProfile.signDate)}
             </Text>
           )}
           <View
@@ -301,6 +394,117 @@ const ProfilePage: React.FC = () => {
                 <Text>确认签署</Text>
               </View>
             </View>
+          </View>
+        </View>
+      )}
+
+      {selectedTimelineItem && (
+        <View className={styles.timelineModal} onClick={() => setSelectedTimelineItem(null)}>
+          <View className={styles.timelineModalContent} onClick={e => e.stopPropagation()}>
+            <View className={styles.timelineModalHeader}>
+              <Text className={styles.timelineModalIcon}>{getTimelineIcon(selectedTimelineItem.type)}</Text>
+              <Text className={styles.timelineModalTitle}>档案详情</Text>
+              <Text className={styles.timelineModalClose} onClick={() => setSelectedTimelineItem(null)}>✕</Text>
+            </View>
+            <ScrollView scrollY style={{ maxHeight: '60vh' }}>
+              <View className={styles.timelineModalBody}>
+                <View className={styles.timelineModalRow}>
+                  <Text className={styles.rowLabel}>日期</Text>
+                  <Text className={styles.rowValue}>{formatFullDate(selectedTimelineItem.date)}</Text>
+                </View>
+                <View className={styles.timelineModalRow}>
+                  <Text className={styles.rowLabel}>类型</Text>
+                  <Text className={styles.rowValue}>{getTimelineTypeName(selectedTimelineItem.type)}</Text>
+                </View>
+                <View className={styles.timelineModalRow}>
+                  <Text className={styles.rowLabel}>标题</Text>
+                  <Text className={styles.rowValue}>{selectedTimelineItem.title}</Text>
+                </View>
+                {selectedTimelineItem.subtitle && (
+                  <View className={styles.timelineModalRow}>
+                    <Text className={styles.rowLabel}>摘要</Text>
+                    <Text className={styles.rowValue}>{selectedTimelineItem.subtitle}</Text>
+                  </View>
+                )}
+
+                {selectedTimelineItem.examRecord && (
+                  <View className={styles.detailSection}>
+                    <Text className={styles.detailSectionTitle}>考核详情</Text>
+                    <View className={styles.detailStatsRow}>
+                      <View className={styles.detailStat}>
+                        <Text className={styles.detailStatValue}>{selectedTimelineItem.examRecord.score}</Text>
+                        <Text className={styles.detailStatLabel}>分数</Text>
+                      </View>
+                      <View className={styles.detailStat}>
+                        <Text className={styles.detailStatValue}>
+                          {selectedTimelineItem.examRecord.correctCount}/{selectedTimelineItem.examRecord.totalQuestions}
+                        </Text>
+                        <Text className={styles.detailStatLabel}>正确</Text>
+                      </View>
+                      <View className={styles.detailStat}>
+                        <Text className={styles.detailStatValue}>
+                          {Math.floor(selectedTimelineItem.examRecord.duration / 60)}分{selectedTimelineItem.examRecord.duration % 60}秒
+                        </Text>
+                        <Text className={styles.detailStatLabel}>用时</Text>
+                      </View>
+                    </View>
+                    <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>薄弱环节分类</Text>
+                      <View className={styles.detailTags}>
+                        {selectedTimelineItem.examRecord.wrongCategories.length > 0 ? (
+                          selectedTimelineItem.examRecord.wrongCategories.map(cat => (
+                            <Text key={cat} className={styles.detailTag}>{cat}</Text>
+                          ))
+                        ) : (
+                          <Text style={{ fontSize: '28rpx', color: '#00B42A' }}>全部掌握，无薄弱环节</Text>
+                        )}
+                      </View>
+                    </View>
+                    <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>错题数量</Text>
+                      <Text className={styles.detailBlockValue}>
+                        {selectedTimelineItem.examRecord.wrongQuestionIds.length} 道
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {selectedTimelineItem.trainingTask && (
+                  <View className={styles.detailSection}>
+                    <Text className={styles.detailSectionTitle}>补训详情</Text>
+                    <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>任务名称</Text>
+                      <Text className={styles.detailBlockValue}>
+                        {selectedTimelineItem.trainingTask.title}
+                      </Text>
+                    </View>
+                    <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>任务描述</Text>
+                      <Text className={styles.detailBlockValue}>
+                        {selectedTimelineItem.trainingTask.description}
+                      </Text>
+                    </View>
+                    <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>创建时间</Text>
+                      <Text className={styles.detailBlockValue}>
+                        {formatFullDate(selectedTimelineItem.trainingTask.createdAt)}
+                      </Text>
+                    </View>
+                    <View className={styles.detailBlock}>
+                      <Text className={styles.detailBlockLabel}>完成状态</Text>
+                      <Text className={classnames(styles.detailBlockValue, { [styles.successText]: selectedTimelineItem.trainingTask.status === 'completed' })}>
+                        {selectedTimelineItem.trainingTask.status === 'completed' ? '已完成' : '进行中'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <View className={styles.detailBlock}>
+                  <Text className={styles.detailBlockLabel}>备注</Text>
+                  <Text className={styles.detailBlockValue}>{selectedTimelineItem.detail}</Text>
+                </View>
+              </View>
+            </ScrollView>
           </View>
         </View>
       )}
