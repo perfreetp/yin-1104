@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import classnames from 'classnames';
-import { questions } from '@/data/questions';
 import QuestionCard from '@/components/QuestionCard';
 import ProgressBar from '@/components/ProgressBar';
-import { Question } from '@/types';
+import { Question, ExamRecord } from '@/types';
+import { useAppStore } from '@/store';
 
 type RoleType = 'nurse' | 'disinfector';
 type ExamStatus = 'idle' | 'exam' | 'result';
@@ -18,28 +18,36 @@ const ShiftExamPage: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number | number[]>>({});
   const [timer, setTimer] = useState(0);
+  const [hasSaved, setHasSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const getRoleExamQuestions = useAppStore(s => s.getRoleExamQuestions);
+  const addExamRecord = useAppStore(s => s.addExamRecord);
 
   const roleName: Record<RoleType, string> = {
     nurse: '护士',
     disinfector: '消毒员'
   };
 
+  const roleDesc: Record<RoleType, string> = {
+    nurse: '侧重回收、放行与临床交接',
+    disinfector: '侧重清洗、包装、灭菌与监测'
+  };
+
   const examCount = 10;
   const passScore = 80;
 
-  const generateExamQuestions = () => {
-    const shuffled = [...questions].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, examCount);
-  };
-
   const startExam = () => {
-    setExamQuestions(generateExamQuestions());
+    const questions = getRoleExamQuestions(role, examCount);
+    console.log('[Exam] Generated questions for role:', role, 'count:', questions.length);
+    setExamQuestions(questions);
     setCurrentIndex(0);
     setAnswers({});
     setTimer(0);
+    setHasSaved(false);
     setExamStatus('exam');
 
+    if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimer(prev => prev + 1);
     }, 1000);
@@ -76,53 +84,69 @@ const ShiftExamPage: React.FC = () => {
     }
   };
 
+  const isAnswerCorrect = (q: Question, userAnswer: number | number[] | undefined): boolean => {
+    if (userAnswer === undefined) return false;
+    if (Array.isArray(q.answer)) {
+      if (!Array.isArray(userAnswer)) return false;
+      return userAnswer.length === q.answer.length &&
+        userAnswer.every(a => q.answer.includes(a));
+    } else {
+      return userAnswer === q.answer;
+    }
+  };
+
+  const correctCount = useMemo(() => {
+    let count = 0;
+    examQuestions.forEach((q, index) => {
+      if (isAnswerCorrect(q, answers[index])) count++;
+    });
+    return count;
+  }, [examQuestions, answers]);
+
+  const score = useMemo(() => {
+    if (examQuestions.length === 0) return 0;
+    return Math.round((correctCount / examQuestions.length) * 100);
+  }, [correctCount, examQuestions.length]);
+
+  const isPass = score >= passScore;
+  const answeredCount = Object.keys(answers).length;
+
   const submitExam = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+
+    if (!hasSaved) {
+      const wrongIds: string[] = [];
+      const wrongCats: string[] = [];
+      examQuestions.forEach((q, index) => {
+        if (!isAnswerCorrect(q, answers[index])) {
+          wrongIds.push(q.id);
+          if (!wrongCats.includes(q.category)) {
+            wrongCats.push(q.category);
+          }
+        }
+      });
+
+      const record: ExamRecord = {
+        id: `exam_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        role,
+        score,
+        totalQuestions: examQuestions.length,
+        correctCount,
+        duration: timer,
+        pass: isPass,
+        wrongQuestionIds: wrongIds,
+        wrongCategories: wrongCats
+      };
+
+      console.log('[Exam] Saving record:', record);
+      addExamRecord(record);
+      setHasSaved(true);
+    }
+
     setExamStatus('result');
-  };
-
-  const calculateScore = () => {
-    let correctCount = 0;
-    examQuestions.forEach((q, index) => {
-      const userAnswer = answers[index];
-      if (userAnswer === undefined) return;
-
-      if (Array.isArray(q.answer)) {
-        if (Array.isArray(userAnswer) &&
-            userAnswer.length === q.answer.length &&
-            userAnswer.every(a => q.answer.includes(a))) {
-          correctCount++;
-        }
-      } else {
-        if (userAnswer === q.answer) {
-          correctCount++;
-        }
-      }
-    });
-    return Math.round((correctCount / examQuestions.length) * 100);
-  };
-
-  const getCorrectCount = () => {
-    let count = 0;
-    examQuestions.forEach((q, index) => {
-      const userAnswer = answers[index];
-      if (userAnswer === undefined) return;
-
-      if (Array.isArray(q.answer)) {
-        if (Array.isArray(userAnswer) &&
-            userAnswer.length === q.answer.length &&
-            userAnswer.every(a => q.answer.includes(a))) {
-          count++;
-        }
-      } else {
-        if (userAnswer === q.answer) {
-          count++;
-        }
-      }
-    });
-    return count;
   };
 
   const formatTime = (seconds: number) => {
@@ -132,42 +156,18 @@ const ShiftExamPage: React.FC = () => {
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
+    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
   };
 
   const handleNext = () => {
-    if (currentIndex < examQuestions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
+    if (currentIndex < examQuestions.length - 1) setCurrentIndex(currentIndex + 1);
   };
 
   const restartExam = () => {
     setExamStatus('idle');
+    setExamQuestions([]);
+    setAnswers({});
   };
-
-  const isQuestionCorrect = (index: number) => {
-    const q = examQuestions[index];
-    const userAnswer = answers[index];
-    if (userAnswer === undefined) return false;
-
-    if (Array.isArray(q.answer)) {
-      if (Array.isArray(userAnswer) &&
-          userAnswer.length === q.answer.length &&
-          userAnswer.every(a => q.answer.includes(a))) {
-        return true;
-      }
-      return false;
-    } else {
-      return userAnswer === q.answer;
-    }
-  };
-
-  const score = calculateScore();
-  const correctCount = getCorrectCount();
-  const isPass = score >= passScore;
-  const answeredCount = Object.keys(answers).length;
 
   return (
     <View className={styles.page}>
@@ -219,14 +219,14 @@ const ShiftExamPage: React.FC = () => {
               <Text className={styles.startExamIcon}>📝</Text>
               <Text className={styles.startExamTitle}>{roleName[role]}考核</Text>
               <Text className={styles.startExamDesc}>
-                随机抽取{examCount}道题目，检验你对消毒追溯流程的掌握程度
+                {roleDesc[role]}，共{examCount}道题目
               </Text>
               <View className={styles.startExamBtn} onClick={startExam}>
                 <Text>开始考试</Text>
               </View>
               <View className={styles.examTips}>
                 <Text className={styles.tipsText}>
-                  💡 提示：考试过程中可随时切换题目，答完后提交即可查看成绩
+                  💡 提示：系统将根据你的角色智能出题，重点考察岗位职责相关内容
                 </Text>
               </View>
             </View>
@@ -256,6 +256,7 @@ const ShiftExamPage: React.FC = () => {
               showAnswer={false}
               selectedAnswer={answers[currentIndex]}
               onSelect={handleSelectAnswer}
+              showIndex={currentIndex + 1}
             />
           </ScrollView>
 
@@ -306,14 +307,17 @@ const ShiftExamPage: React.FC = () => {
               </View>
             </View>
             <View className={styles.resultBody}>
-              {examQuestions.map((q, index) => (
-                <View key={q.id} className={styles.resultItem}>
-                  <View className={classnames(styles.resultIndex, isQuestionCorrect(index) ? styles.correct : styles.wrong)}>
-                    {isQuestionCorrect(index) ? '✓' : '✗'}
+              {examQuestions.map((q, index) => {
+                const correct = isAnswerCorrect(q, answers[index]);
+                return (
+                  <View key={q.id} className={styles.resultItem}>
+                    <View className={classnames(styles.resultIndex, correct ? styles.correct : styles.wrong)}>
+                      {correct ? '✓' : '✗'}
+                    </View>
+                    <Text className={styles.resultQuestion}>{q.question}</Text>
                   </View>
-                  <Text className={styles.resultQuestion}>{q.question}</Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
             <View className={styles.resultFooter}>
               <View className={classnames(styles.btn, styles.btnOutline)} onClick={restartExam}>

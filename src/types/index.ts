@@ -19,13 +19,25 @@ export interface SimulationForm {
   instrumentType: string
   batchNo: string
   recycleTime: string
+  recycleOperator: string
   cleanMethod: string
+  cleanOperator: string
   packOperator: string
+  packDate: string
   sterilizerNo: string
   sterilizeTemp: string
   sterilizeTime: string
+  sterilizeDuration: string
   releaseOperator: string
   releaseTime: string
+  bioMonitor: string
+}
+
+export interface ValidationError {
+  field: string
+  label: string
+  message: string
+  suggestion: string
 }
 
 export interface Question {
@@ -37,11 +49,21 @@ export interface Question {
   explanation: string
   category: string
   difficulty: 'easy' | 'medium' | 'hard'
+  forRoles: ('nurse' | 'disinfector')[]
 }
 
 export interface WrongQuestion extends Question {
   wrongCount: number
   lastWrongTime: string
+}
+
+export interface PracticeRecord {
+  id: string
+  questionId: string
+  questionType: string
+  category: string
+  isCorrect: boolean
+  timestamp: number
 }
 
 export interface ExamRecord {
@@ -53,6 +75,8 @@ export interface ExamRecord {
   correctCount: number
   duration: number
   pass: boolean
+  wrongQuestionIds: string[]
+  wrongCategories: string[]
 }
 
 export interface UserProfile {
@@ -60,11 +84,6 @@ export interface UserProfile {
   role: 'nurse' | 'disinfector'
   avatar: string
   joinDate: string
-  totalExams: number
-  passRate: number
-  avgScore: number
-  weakPoints: string[]
-  trainingTasks: TrainingTask[]
   signedProcess: boolean
   signDate?: string
 }
@@ -75,6 +94,8 @@ export interface TrainingTask {
   description: string
   status: 'pending' | 'completed'
   deadline: string
+  sourceCategory: string
+  createdAt: string
 }
 
 export interface StatItem {

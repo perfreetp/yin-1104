@@ -5,33 +5,6 @@ export const userProfile: UserProfile = {
   role: 'disinfector',
   avatar: 'https://picsum.photos/id/1005/200/200',
   joinDate: '2024-01-02',
-  totalExams: 12,
-  passRate: 75,
-  avgScore: 82,
-  weakPoints: ['灭菌参数记忆', '生物监测频率', '批次中断处理', '包内缺件处理'],
-  trainingTasks: [
-    {
-      id: 't1',
-      title: '灭菌参数强化训练',
-      description: '复习各类器械的灭菌温度、时间、压力参数',
-      status: 'pending',
-      deadline: '2024-01-20'
-    },
-    {
-      id: 't2',
-      title: '情景题专项练习',
-      description: '包内缺件、批次中断等异常情况处理',
-      status: 'pending',
-      deadline: '2024-01-22'
-    },
-    {
-      id: 't3',
-      title: '追溯单填写规范',
-      description: '模拟录入练习，确保填写零差错',
-      status: 'completed',
-      deadline: '2024-01-10'
-    }
-  ],
   signedProcess: false
 }
 
@@ -44,7 +17,9 @@ export const examRecords: ExamRecord[] = [
     totalQuestions: 10,
     correctCount: 9,
     duration: 480,
-    pass: true
+    pass: true,
+    wrongQuestionIds: ['q2'],
+    wrongCategories: ['灭菌']
   },
   {
     id: 'e2',
@@ -54,7 +29,9 @@ export const examRecords: ExamRecord[] = [
     totalQuestions: 10,
     correctCount: 7,
     duration: 520,
-    pass: false
+    pass: false,
+    wrongQuestionIds: ['q5', 'q6', 'q9'],
+    wrongCategories: ['包装', '灭菌', '清洗']
   },
   {
     id: 'e3',
@@ -64,7 +41,9 @@ export const examRecords: ExamRecord[] = [
     totalQuestions: 10,
     correctCount: 8.5,
     duration: 450,
-    pass: true
+    pass: true,
+    wrongQuestionIds: ['q11', 'q12'],
+    wrongCategories: ['灭菌', '放行']
   },
   {
     id: 'e4',
@@ -74,7 +53,9 @@ export const examRecords: ExamRecord[] = [
     totalQuestions: 10,
     correctCount: 6.5,
     duration: 600,
-    pass: false
+    pass: false,
+    wrongQuestionIds: ['q2', 'q5', 'q6', 'q9', 'q11'],
+    wrongCategories: ['灭菌', '包装', '灭菌', '清洗', '灭菌']
   },
   {
     id: 'e5',
@@ -84,6 +65,8 @@ export const examRecords: ExamRecord[] = [
     totalQuestions: 10,
     correctCount: 8,
     duration: 500,
-    pass: true
+    pass: true,
+    wrongQuestionIds: ['q2', 'q12'],
+    wrongCategories: ['灭菌', '放行']
   }
 ]

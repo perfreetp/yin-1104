@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import classnames from 'classnames';
 import { wrongQuestions, scenarioQuestions, questions } from '@/data/questions';
-import { userProfile } from '@/data/user';
 import QuestionCard from '@/components/QuestionCard';
-import { Question, WrongQuestion } from '@/types';
+import { Question, WrongQuestion, PracticeRecord } from '@/types';
+import { useAppStore } from '@/store';
 
 type TabType = 'wrong' | 'scenario';
 
@@ -13,20 +14,65 @@ const ErrorCorrectionPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('wrong');
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | undefined>(undefined);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | number[] | undefined>(undefined);
+  const [practiceRecords, setPracticeRecords] = useState<PracticeRecord[]>([]);
+
+  const addPracticeRecord = useAppStore(s => s.addPracticeRecord);
+  const getWeakPoints = useAppStore(s => s.getWeakPoints);
+  const weakPoints = useMemo(() => getWeakPoints(), [getWeakPoints]);
 
   const handleSelectQuestion = (question: Question) => {
     setSelectedQuestion(question);
     setShowAnswer(false);
-    setSelectedAnswer(undefined);
+    if (question.type === 'multiple') {
+      setSelectedAnswer([]);
+    } else {
+      setSelectedAnswer(undefined);
+    }
   };
 
   const handleSelectOption = (index: number) => {
     if (selectedQuestion?.type === 'multiple') {
-      return;
+      const current = (selectedAnswer as number[]) || [];
+      if (current.includes(index)) {
+        setSelectedAnswer(current.filter(i => i !== index));
+      } else {
+        setSelectedAnswer([...current, index]);
+      }
+    } else {
+      setSelectedAnswer(index);
     }
-    setSelectedAnswer(index);
+  };
+
+  const handleSubmit = () => {
+    if (!selectedQuestion || selectedAnswer === undefined) return;
+
+    const currentQ = selectedQuestion;
+    let correct = false;
+    if (Array.isArray(currentQ.answer)) {
+      if (Array.isArray(selectedAnswer)) {
+        correct = selectedAnswer.length === currentQ.answer.length &&
+          selectedAnswer.every(a => currentQ.answer.includes(a));
+      }
+    } else {
+      correct = selectedAnswer === currentQ.answer;
+    }
+
+    addPracticeRecord({
+      id: `practice_${Date.now()}`,
+      questionId: currentQ.id,
+      questionType: currentQ.type,
+      category: currentQ.category,
+      isCorrect: correct,
+      timestamp: Date.now()
+    }, currentQ);
+
     setShowAnswer(true);
+
+    Taro.showToast({
+      title: correct ? '回答正确' : '回答错误',
+      icon: correct ? 'success' : 'none'
+    });
   };
 
   const closeModal = () => {
@@ -35,25 +81,31 @@ const ErrorCorrectionPage: React.FC = () => {
     setSelectedAnswer(undefined);
   };
 
+  const isAllWrongQuestions: Question[] = useMemo(() => {
+    return questions.filter(q => wrongQuestions.some(wq => wq.id === q.id));
+  }, []);
+
   const renderWrongQuestions = () => (
     <View className={styles.questionList}>
-      {wrongQuestions.map((q: WrongQuestion, index: number) => (
-        <View
-          key={q.id}
-          className={styles.wrongQuestionItem}
-          onClick={() => handleSelectQuestion(q)}
-        >
-          <View className={styles.wrongQuestionHeader}>
-            <Text className={styles.wrongQuestionType}>第{index + 1}题</Text>
-            <Text className={styles.wrongCount}>错{q.wrongCount}次</Text>
+      {isAllWrongQuestions.map((q: Question, index: number) => {
+        const wrongMeta = wrongQuestions.find(wq => wq.id === q.id);
+        return (
+          <View
+            key={q.id}
+            className={styles.wrongQuestionItem}
+            onClick={() => handleSelectQuestion(q)}
+          >
+            <View className={styles.wrongQuestionHeader}>
+              <Text className={styles.wrongQuestionType}>第{index + 1}题</Text>
+              {wrongMeta && <Text className={styles.wrongCount}>错{wrongMeta.wrongCount}次</Text>}
+            </View>
+            <Text className={styles.wrongQuestionText}>{q.question}</Text>
+            <View className={styles.wrongQuestionMeta}>
+              <Text>{q.category} · {q.difficulty === 'easy' ? '简单' : q.difficulty === 'medium' ? '中等' : '困难'}</Text>
+            </View>
           </View>
-          <Text className={styles.wrongQuestionText}>{q.question}</Text>
-          <View className={styles.wrongQuestionMeta}>
-            <Text>{q.category} · {q.difficulty === 'easy' ? '简单' : q.difficulty === 'medium' ? '中等' : '困难'}</Text>
-            <Text>最近错误：{q.lastWrongTime}</Text>
-          </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 
@@ -66,15 +118,6 @@ const ErrorCorrectionPage: React.FC = () => {
             <Text>情景题 {index + 1}</Text>
           </View>
           <Text className={styles.scenarioDesc}>{q.question}</Text>
-          <View>
-            {q.options.map((option, optIndex) => (
-              <View key={optIndex} style={{ marginBottom: '16rpx' }}>
-                <Text style={{ fontSize: '28rpx', color: '#4E5969' }}>
-                  {String.fromCharCode(65 + optIndex)}. {option}
-                </Text>
-              </View>
-            ))}
-          </View>
           <View className={styles.practiceBtn} onClick={() => handleSelectQuestion(q)}>
             <Text>开始练习</Text>
           </View>
@@ -100,7 +143,7 @@ const ErrorCorrectionPage: React.FC = () => {
           <Text className={styles.statLabel}>情景题</Text>
         </View>
         <View className={styles.statCard}>
-          <Text className={styles.statValue}>{userProfile.weakPoints.length}</Text>
+          <Text className={styles.statValue}>{weakPoints.length}</Text>
           <Text className={styles.statLabel}>薄弱环节</Text>
         </View>
       </View>
@@ -108,11 +151,15 @@ const ErrorCorrectionPage: React.FC = () => {
       <View className={styles.section}>
         <Text className={styles.weakPointsTitle}>🔥 易错环节</Text>
         <View className={styles.weakPointsList}>
-          {userProfile.weakPoints.map((point, index) => (
-            <Text key={index} className={styles.weakPointTag}>
-              {point}
-            </Text>
-          ))}
+          {weakPoints.length > 0 ? (
+            weakPoints.map((point, index) => (
+              <Text key={index} className={styles.weakPointTag}>
+                {point}
+              </Text>
+            ))
+          ) : (
+            <Text style={{ fontSize: '26rpx', color: '#86909C', padding: '16rpx' }}>暂无记录，完成考核后自动生成</Text>
+          )}
         </View>
       </View>
 
@@ -142,12 +189,32 @@ const ErrorCorrectionPage: React.FC = () => {
               <Text className={styles.modalTitle}>题目详情</Text>
               <Text className={styles.modalClose} onClick={closeModal}>✕</Text>
             </View>
-            <QuestionCard
-              question={selectedQuestion}
-              showAnswer={showAnswer}
-              selectedAnswer={selectedAnswer}
-              onSelect={handleSelectOption}
-            />
+            <ScrollView scrollY style={{ maxHeight: '70vh' }}>
+              <QuestionCard
+                question={selectedQuestion}
+                showAnswer={showAnswer}
+                selectedAnswer={selectedAnswer}
+                onSelect={handleSelectOption}
+              />
+            </ScrollView>
+            {!showAnswer && (
+              <View
+                className={classnames(
+                  styles.submitBtn,
+                  selectedQuestion.type === 'multiple'
+                    ? (selectedAnswer as number[]).length === 0 && styles.disabled
+                    : selectedAnswer === undefined && styles.disabled
+                )}
+                onClick={handleSubmit}
+              >
+                <Text>提交答案</Text>
+              </View>
+            )}
+            {showAnswer && (
+              <View className={styles.submitBtn} onClick={closeModal}>
+              <Text>关闭</Text>
+            </View>
+          )}
           </View>
         </View>
       )}

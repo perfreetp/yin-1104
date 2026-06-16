@@ -355,3 +355,69 @@
   color: $color-text-secondary;
   line-height: $line-height-normal;
 }
+
+.formHint {
+  padding: $spacing-sm $spacing-md;
+  background: $color-primary-bg;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-lg;
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
+
+.inputError {
+  border-color: $color-error !important;
+  background: rgba(245, 63, 63, 0.05);
+}
+
+.validationItem {
+  padding: $spacing-md;
+  background: rgba(245, 63, 63, 0.06);
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+  border-left: 6rpx solid $color-error;
+}
+
+.validationHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-xs;
+}
+
+.validationIcon {
+  font-size: 28rpx;
+}
+
+.validationField {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-error;
+}
+
+.validationMessage {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  margin-bottom: $spacing-sm;
+  line-height: $line-height-normal;
+}
+
+.validationSuggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-xs;
+  padding: $spacing-sm;
+  background: $color-primary-bg;
+  border-radius: $radius-sm;
+}
+
+.suggestionIcon {
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+
+.suggestionText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-normal;
+}

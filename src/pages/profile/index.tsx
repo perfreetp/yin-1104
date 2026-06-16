@@ -1,21 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Image, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import classnames from 'classnames';
-import { userProfile, examRecords } from '@/data/user';
 import { ExamRecord, TrainingTask } from '@/types';
+import { useAppStore } from '@/store';
 
 const ProfilePage: React.FC = () => {
-  const [signed, setSigned] = useState(userProfile.signedProcess);
+  const userProfile = useAppStore(s => s.userProfile);
+  const examRecords = useAppStore(s => s.examRecords);
+  const trainingTasks = useAppStore(s => s.trainingTasks);
+  const getStatistics = useAppStore(s => s.getStatistics);
+  const getWeakPoints = useAppStore(s => s.getWeakPoints);
+  const generateTrainingTasks = useAppStore(s => s.generateTrainingTasks);
+  const markTaskCompleted = useAppStore(s => s.markTaskCompleted);
+  const signProcess = useAppStore(s => s.signProcess);
+
   const [showSignModal, setShowSignModal] = useState(false);
+
+  const stats = useMemo(() => getStatistics(), [getStatistics, examRecords]);
+  const weakPoints = useMemo(() => getWeakPoints(), [getWeakPoints, examRecords, trainingTasks]);
+  const tasks = useMemo(() => {
+    if (trainingTasks.length === 0) {
+      return generateTrainingTasks();
+    }
+    return trainingTasks;
+  }, [trainingTasks, generateTrainingTasks]);
 
   const roleName = userProfile.role === 'nurse' ? '护士' : '消毒员';
 
+  useEffect(() => {
+    console.log('[Profile] Loaded data, records:', examRecords.length, 'tasks:', trainingTasks.length);
+  }, [examRecords, trainingTasks]);
+
   const handleSign = () => {
-    setSigned(true);
+    signProcess();
     setShowSignModal(false);
     Taro.showToast({ title: '签署成功', icon: 'success' });
+  };
+
+  const handleTaskClick = (task: TrainingTask) => {
+    if (task.status === 'pending') {
+      Taro.showModal({
+        title: '完成任务',
+        content: `确认已完成"${task.title}"？`,
+        success: (res) => {
+          if (res.confirm) {
+            markTaskCompleted(task.id);
+            Taro.showToast({ title: '任务已完成', icon: 'success' });
+          }
+        }
+      });
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -24,6 +60,8 @@ const ProfilePage: React.FC = () => {
     const day = date.getDate();
     return { month: `${month}月`, day: `${day}日` };
   };
+
+  const pendingCount = tasks.filter(t => t.status === 'pending').length;
 
   return (
     <ScrollView className={styles.page} scrollY>
@@ -44,15 +82,15 @@ const ProfilePage: React.FC = () => {
       <View className={styles.statsSection}>
         <View className={styles.statsGrid}>
           <View className={styles.statsItem}>
-            <Text className={styles.statsValue}>{userProfile.totalExams}</Text>
+            <Text className={styles.statsValue}>{stats.totalExams}</Text>
             <Text className={styles.statsLabel}>考试次数</Text>
           </View>
           <View className={styles.statsItem}>
-            <Text className={styles.statsValue}>{userProfile.passRate}%</Text>
+            <Text className={styles.statsValue}>{stats.passRate}%</Text>
             <Text className={styles.statsLabel}>通过率</Text>
           </View>
           <View className={styles.statsItem}>
-            <Text className={styles.statsValue}>{userProfile.avgScore}</Text>
+            <Text className={styles.statsValue}>{stats.avgScore}</Text>
             <Text className={styles.statsLabel}>平均分</Text>
           </View>
         </View>
@@ -64,13 +102,20 @@ const ProfilePage: React.FC = () => {
             <Text className={styles.sectionTitleIcon}>⚠️</Text>
             易错环节
           </Text>
+          {weakPoints.length > 0 && (
+            <Text className={styles.sectionMore}>基于最近{Math.min(examRecords.length, 5)}次考核</Text>
+          )}
         </View>
         <View className={styles.weakPoints}>
-          {userProfile.weakPoints.map((point, index) => (
-            <Text key={index} className={styles.weakPointTag}>
-              {point}
-            </Text>
-          ))}
+          {weakPoints.length > 0 ? (
+            weakPoints.map((point, index) => (
+              <Text key={index} className={styles.weakPointTag}>
+                {point}
+              </Text>
+            ))
+          ) : (
+            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '16rpx' }}>暂无记录，完成考核后自动生成</Text>
+          )}
         </View>
       </View>
 
@@ -81,27 +126,31 @@ const ProfilePage: React.FC = () => {
             补训任务
           </Text>
           <Text className={styles.sectionMore}>
-            {userProfile.trainingTasks.filter(t => t.status === 'pending').length} 项待完成
+            {pendingCount} 项待完成
           </Text>
         </View>
         <View className={styles.taskList}>
-          {userProfile.trainingTasks.map((task: TrainingTask) => (
-            <View key={task.id} className={styles.taskItem}>
-              <View className={classnames(styles.taskIcon, task.status === 'completed' && styles.completed)}>
-                <Text>{task.status === 'completed' ? '✓' : '📋'}</Text>
-              </View>
-              <View className={styles.taskContent}>
-                <Text className={styles.taskTitle}>{task.title}</Text>
-                <Text className={styles.taskDesc}>{task.description}</Text>
-                <View className={styles.taskMeta}>
-                  <Text className={styles.taskDeadline}>截止：{task.deadline}</Text>
-                  <Text className={classnames(styles.taskStatus, styles[task.status])}>
-                    {task.status === 'completed' ? '已完成' : '待完成'}
-                  </Text>
+          {tasks.length > 0 ? (
+            tasks.map((task: TrainingTask) => (
+              <View key={task.id} className={styles.taskItem} onClick={() => handleTaskClick(task)}>
+                <View className={classnames(styles.taskIcon, task.status === 'completed' && styles.completed)}>
+                  <Text>{task.status === 'completed' ? '✓' : '📋'}</Text>
+                </View>
+                <View className={styles.taskContent}>
+                  <Text className={styles.taskTitle}>{task.title}</Text>
+                  <Text className={styles.taskDesc}>{task.description}</Text>
+                  <View className={styles.taskMeta}>
+                    <Text className={styles.taskDeadline}>截止：{task.deadline}</Text>
+                    <Text className={classnames(styles.taskStatus, styles[task.status])}>
+                      {task.status === 'completed' ? '已完成' : '点击完成'}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
+            ))
+          ) : (
+            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '32rpx', textAlign: 'center' }}>暂无任务</Text>
+          )}
         </View>
       </View>
 
@@ -111,10 +160,10 @@ const ProfilePage: React.FC = () => {
             <Text className={styles.sectionTitleIcon}>📊</Text>
             历史成绩
           </Text>
-          <Text className={styles.sectionMore}>查看全部</Text>
+          <Text className={styles.sectionMore}>共{examRecords.length}次</Text>
         </View>
         <View className={styles.recordList}>
-          {examRecords.slice(0, 5).map((record: ExamRecord) => {
+          {examRecords.slice(0, 10).map((record: ExamRecord) => {
             const dateInfo = formatDate(record.date);
             return (
               <View key={record.id} className={styles.recordItem}>
@@ -141,6 +190,9 @@ const ProfilePage: React.FC = () => {
               </View>
             );
           })}
+          {examRecords.length === 0 && (
+            <Text style={{ fontSize: '28rpx', color: '#86909C', padding: '32rpx', textAlign: 'center' }}>暂无考核记录</Text>
+          )}
         </View>
       </View>
 
@@ -149,19 +201,24 @@ const ProfilePage: React.FC = () => {
           <View className={styles.signHeader}>
             <Text className={styles.signIcon}>📝</Text>
             <Text className={styles.signTitle}>上岗流程确认</Text>
-            <Text className={classnames(styles.signStatus, signed ? styles.signed : styles.unsigned)}>
-              {signed ? '已签署' : '待签署'}
+            <Text className={classnames(styles.signStatus, userProfile.signedProcess ? styles.signed : styles.unsigned)}>
+              {userProfile.signedProcess ? '已签署' : '待签署'}
             </Text>
           </View>
           <View className={styles.signContent}>
             本人已认真学习消毒追溯流程的所有环节，包括回收、清洗、包装、灭菌、放行的操作规范和质量要求，
             承诺在实际工作中严格遵守相关规定，确保消毒质量和患者安全。
           </View>
+          {userProfile.signedProcess && userProfile.signDate && (
+            <Text style={{ fontSize: '24rpx', color: '#00B42A', marginBottom: '16rpx' }}>
+              签署时间：{userProfile.signDate}
+            </Text>
+          )}
           <View
-            className={classnames(styles.signBtn, signed && styles.disabled)}
-            onClick={() => !signed && setShowSignModal(true)}
+            className={classnames(styles.signBtn, userProfile.signedProcess && styles.disabled)}
+            onClick={() => !userProfile.signedProcess && setShowSignModal(true)}
           >
-            <Text>{signed ? '已完成签署' : '立即签署'}</Text>
+            <Text>{userProfile.signedProcess ? '已完成签署' : '立即签署'}</Text>
           </View>
         </View>
       </View>
@@ -176,7 +233,8 @@ const ProfilePage: React.FC = () => {
               1. 严格按照标准流程进行操作{'\n'}
               2. 认真填写每一项追溯记录{'\n'}
               3. 发现问题及时上报{'\n'}
-              4. 对消毒质量负责
+              4. 对消毒质量负责{'\n\n'}
+              签署后此确认将长期保存在个人档案中。
             </Text>
             <View className={styles.signModalActions}>
               <View className={classnames(styles.signModalBtn, styles.btnCancel)} onClick={() => setShowSignModal(false)}>
